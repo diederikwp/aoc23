@@ -3,6 +3,18 @@
 Solutions for [Advent of Code](https://adventofcode.com/) in [Rust](https://www.rust-lang.org/).
 Repository structure based on [this template](https://github.com/fspoettel/advent-of-code-rust).
 
+<!--- advent_readme_stars table --->
+
+<!--- benchmarking table --->
+## Benchmarks
+
+| Day | Part 1 | Part 2 |
+| :---: | :---: | :---:  |
+| [Day 1](./src/bin/01.rs) | `26.3µs` | `-` |
+
+**Total: 0.03ms**
+<!--- benchmarking table --->
+
 ---
 
 ### Setup rust 💻
