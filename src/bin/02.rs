@@ -79,6 +79,17 @@ impl Game {
         }
         true
     }
+
+    fn min_power(&self) -> u32 {
+        let (mut min_r, mut min_g, mut min_b) = (0, 0, 0);
+        for cs in &self.cube_sets {
+            min_r = min_r.max(cs.red);
+            min_g = min_g.max(cs.green);
+            min_b = min_b.max(cs.blue);
+        }
+
+        u32::from(min_r) * u32::from(min_g) * u32::from(min_b)
+    }
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
@@ -100,8 +111,9 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(n_possible)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u32> {
+    let games = parse_games(input).ok()?;
+    Some(games.iter().map(|g| g.min_power()).sum())
 }
 
 fn parse_games(input: &str) -> Result<Vec<Game>, Box<dyn Error>> {
@@ -131,6 +143,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(2286));
     }
 }
