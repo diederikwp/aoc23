@@ -8,10 +8,11 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
+    let replacer = FirstLastDigitReplacer::new();
+
     input
         .lines()
-        .map(replace_digits)
-        // .map(replace_numbers)
+        .map(|l| replacer.replace_digits(l))
         .map(|l| get_2_digits(&l))
         .sum::<Result<u32, _>>()
         .ok()
@@ -45,41 +46,54 @@ fn get_2_digits(line: &str) -> Result<u32, Box<dyn Error>> {
     Ok((std::str::from_utf8(&digits))?.parse()?)
 }
 
-fn replace_digits(line: &str) -> String {
-    let mut replaced = String::from(line);
+// A struct instead of a simple function allows compiling the regex only once
+// upon init.
+struct FirstLastDigitReplacer {
+    rx1: Regex,
+    rx2: Regex,
+}
 
-    // Todo: don't recompile regex every time
-    // Todo: find a single regexp that captures either 1 or 2 numbers
-    let rx1 = Regex::new(r"^.*?(\d|one|two|three|four|five|six|seven|eight|nine).*").unwrap();
-    let rx2 = Regex::new(concat!(
-        r"^.*?(\d|one|two|three|four|five|six|seven|eight|nine).*",
-        r"(\d|one|two|three|four|five|six|seven|eight|nine).*?$"
-    ))
-    .unwrap();
+impl FirstLastDigitReplacer {
+    fn new() -> Self {
+        // A regex for matching 1 and a regex for matching 2 digits.
+        // Todo: find a single regexp that captures either 1 or 2 digits
+        let rx1 = Regex::new(r"^.*?(\d|one|two|three|four|five|six|seven|eight|nine).*").unwrap();
+        let rx2 = Regex::new(concat!(
+            r"^.*?(\d|one|two|three|four|five|six|seven|eight|nine).*",
+            r"(\d|one|two|three|four|five|six|seven|eight|nine).*?$"
+        ))
+        .unwrap();
 
-    // First try capturing 2 numbers
-    match rx2.captures(line) {
-        None => (),
-        Some(caps) => {
-            let c1 = caps.get(1).unwrap();
-            let c2 = caps.get(2).unwrap();
-            replaced.replace_range(c2.start()..c2.end(), word2digit(c2.as_str()));
-            replaced.replace_range(c1.start()..c1.end(), word2digit(c1.as_str()));
+        FirstLastDigitReplacer { rx1, rx2 }
+    }
 
-            return replaced;
-        }
-    };
+    fn replace_digits(&self, line: &str) -> String {
+        let mut replaced = String::from(line);
 
-    // There is at most 1 number
-    match rx1.captures(line) {
-        None => (),
-        Some(caps) => {
-            let c = caps.get(1).unwrap();
-            replaced.replace_range(c.start()..c.end(), word2digit(c.as_str()));
-        }
-    };
+        // First try capturing 2 numbers
+        match self.rx2.captures(line) {
+            None => (),
+            Some(caps) => {
+                let c1 = caps.get(1).unwrap();
+                let c2 = caps.get(2).unwrap();
+                replaced.replace_range(c2.start()..c2.end(), word2digit(c2.as_str()));
+                replaced.replace_range(c1.start()..c1.end(), word2digit(c1.as_str()));
 
-    replaced
+                return replaced;
+            }
+        };
+
+        // There is at most 1 number
+        match self.rx1.captures(line) {
+            None => (),
+            Some(caps) => {
+                let c = caps.get(1).unwrap();
+                replaced.replace_range(c.start()..c.end(), word2digit(c.as_str()));
+            }
+        };
+
+        replaced
+    }
 }
 
 fn word2digit(written: &str) -> &str {
@@ -110,19 +124,24 @@ mod tests {
     }
 
     #[test]
-    fn test_replace_written_digits() {
-        assert_eq!(replace_digits("two1nine"), "219");
-        assert_eq!(replace_digits("eightwothree"), "8wo3");
-        assert_eq!(replace_digits("abcone2threexyz"), "abc123xyz");
-        assert_eq!(replace_digits("xtwone3four"), "x2ne34");
-        assert_eq!(replace_digits("4nineeightseven2"), "49eight72");
-        assert_eq!(replace_digits("zoneight234"), "z1ight234");
-        assert_eq!(replace_digits("7pqrstsixteen"), "7pqrst6teen");
-        assert_eq!(replace_digits("abcde"), "abcde");
-        assert_eq!(replace_digits("80073"), "80073");
-        assert_eq!(replace_digits("two"), "2");
-        assert_eq!(replace_digits("onene"), "1ne");
-        assert_eq!(replace_digits("oneight"), "1ight"); // or on8?
+    fn test_replace_digits() {
+        let replacer = FirstLastDigitReplacer::new();
+
+        assert_eq!(replacer.replace_digits("two1nine"), "219");
+        assert_eq!(replacer.replace_digits("eightwothree"), "8wo3");
+        assert_eq!(replacer.replace_digits("abcone2threexyz"), "abc123xyz");
+        assert_eq!(replacer.replace_digits("xtwone3four"), "x2ne34");
+        assert_eq!(
+            replacer.replace_digits("4nineeightseven2"),
+            "4nineeightseven2"
+        );
+        assert_eq!(replacer.replace_digits("zoneight234"), "z1ight234");
+        assert_eq!(replacer.replace_digits("7pqrstsixteen"), "7pqrst6teen");
+        assert_eq!(replacer.replace_digits("abcde"), "abcde");
+        assert_eq!(replacer.replace_digits("80073"), "80073");
+        assert_eq!(replacer.replace_digits("two"), "2");
+        assert_eq!(replacer.replace_digits("onene"), "1ne");
+        assert_eq!(replacer.replace_digits("oneight"), "1ight"); // or on8?
     }
 
     #[test]
