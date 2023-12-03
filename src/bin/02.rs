@@ -1,4 +1,4 @@
-use advent_of_code::config::SETTINGS;
+use advent_of_code::puzzles::config::SETTINGS;
 use std::{error::Error, str::FromStr};
 
 advent_of_code::solution!(2);
