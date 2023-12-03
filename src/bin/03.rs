@@ -1,32 +1,11 @@
-use advent_of_code::puzzles::d03::{GridSlot, Number, Schematic};
+use advent_of_code::puzzles::d03::{Number, Schematic};
 
 advent_of_code::solution!(3);
 
 pub fn part_one(input: &str) -> Option<u32> {
-    // Parse the schematic
     let schematic = Schematic::new(input);
-    let grid = schematic.grid();
-    let mut selected_nums = vec![false; schematic.numbers().len()];
+    let selected_nums = schematic.select_part_number_idxs();
 
-    // Mark all numbers adjacent to a symbol in `selected_nums`
-    for sym in schematic.symbols() {
-        for (x, y) in [
-            (sym.x - 1, sym.y - 1),
-            (sym.x, sym.y - 1),
-            (sym.x + 1, sym.y - 1),
-            (sym.x - 1, sym.y),
-            (sym.x + 1, sym.y),
-            (sym.x - 1, sym.y + 1),
-            (sym.x, sym.y + 1),
-            (sym.x + 1, sym.y + 1),
-        ] {
-            if let Some(GridSlot::Number(i)) = grid.get([x, y]) {
-                selected_nums[*i] = true;
-            }
-        }
-    }
-
-    // Sum the values of those numbers
     Some(
         schematic
             .numbers()
@@ -37,8 +16,10 @@ pub fn part_one(input: &str) -> Option<u32> {
     )
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u32> {
+    // Parse the schematic
+    let schematic = Schematic::new(input);
+    Some(schematic.total_gear_ratio())
 }
 
 #[cfg(test)]
@@ -54,6 +35,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(467835));
     }
 }

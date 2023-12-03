@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use self::tok::{TokenKind, Tokenizer};
 use ndarray::Array2;
 
@@ -69,6 +71,60 @@ impl Schematic {
 
     pub fn numbers(&self) -> &[Number] {
         &self.numbers
+    }
+
+    pub fn select_part_number_idxs(&self) -> Vec<bool> {
+        let mut selected_nums = vec![false; self.numbers().len()];
+
+        // Mark all numbers adjacent to a symbol in `selected_nums`
+        for sym in self.symbols() {
+            for (x, y) in Self::get_adjacent_coords(sym.x, sym.y) {
+                if let Some(GridSlot::Number(i)) = self.grid.get([x, y]) {
+                    selected_nums[*i] = true;
+                }
+            }
+        }
+
+        selected_nums
+    }
+
+    pub fn total_gear_ratio(&self) -> u32 {
+        let mut total_gear_ratio = 0;
+        let part_num_selection = self.select_part_number_idxs();
+
+        for sym in self.symbols() {
+            let mut adjacent_part_idxs = HashSet::new();
+
+            for (x, y) in Self::get_adjacent_coords(sym.x, sym.y) {
+                if let Some(GridSlot::Number(i)) = self.grid.get([x, y]) {
+                    if part_num_selection[*i] {
+                        adjacent_part_idxs.insert(i);
+                    }
+                }
+            }
+
+            if adjacent_part_idxs.len() == 2 {
+                total_gear_ratio += adjacent_part_idxs
+                    .iter()
+                    .map(|&i| self.numbers()[*i].val)
+                    .product::<u32>()
+            }
+        }
+
+        total_gear_ratio
+    }
+
+    fn get_adjacent_coords(x: usize, y: usize) -> [(usize, usize); 8] {
+        [
+            (x - 1, y - 1),
+            (x, y - 1),
+            (x + 1, y - 1),
+            (x - 1, y),
+            (x + 1, y),
+            (x - 1, y + 1),
+            (x, y + 1),
+            (x + 1, y + 1),
+        ]
     }
 }
 
