@@ -1,4 +1,4 @@
-use std::{str::FromStr, error::Error};
+use std::{error::Error, str::FromStr};
 
 pub struct CardGame {
     winning_nums: Vec<u8>,
@@ -7,17 +7,19 @@ pub struct CardGame {
 
 impl CardGame {
     pub fn points(&self) -> u32 {
-        let mut points = 1;
-        for x in &self.nums {
-            // alternatives:
+        2_u32.pow(self.n_matching()) / 2
+    }
+
+    pub fn n_matching(&self) -> u32 {
+        self.nums
+            .iter()
+            // alternatives to `contains`:
             // - hashset (probably slower for such a short vec)
             // - sorting winning_nums upon creation and using binary search
-            if self.winning_nums.contains(x) {
-                points <<= 1;
-            }
-        }
-
-        points >> 1
+            .filter(|x| self.winning_nums.contains(x))
+            .count()
+            .try_into()
+            .unwrap()
     }
 }
 
