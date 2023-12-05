@@ -29,7 +29,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["1"],
+            "args": ["solve", "5"],
             "cwd": "${workspaceFolder}"
         },
         {
