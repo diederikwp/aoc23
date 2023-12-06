@@ -10,14 +10,14 @@ Repository structure based on [this template](https://github.com/fspoettel/adven
 
 | Day | Part 1 | Part 2 |
 | :---: | :---: | :---:  |
-| [Day 1](./src/bin/01.rs) | `41.9µs` | `1.1ms` |
-| [Day 2](./src/bin/02.rs) | `52.5µs` | `48.1µs` |
-| [Day 3](./src/bin/03.rs) | `58.8µs` | `104.3µs` |
-| [Day 4](./src/bin/04.rs) | `146.4µs` | `137.2µs` |
-| [Day 5](./src/bin/05.rs) | `23.5µs` | `40.4µs` |
-| [Day 6](./src/bin/06.rs) | `364.0ns` | `-` |
+| [Day 1](./src/bin/01.rs) | `46.6µs` | `1.1ms` |
+| [Day 2](./src/bin/02.rs) | `48.7µs` | `47.6µs` |
+| [Day 3](./src/bin/03.rs) | `56.8µs` | `102.6µs` |
+| [Day 4](./src/bin/04.rs) | `141.0µs` | `135.0µs` |
+| [Day 5](./src/bin/05.rs) | `20.4µs` | `40.0µs` |
+| [Day 6](./src/bin/06.rs) | `344.0ns` | `502.0ns` |
 
-**Total: 1.75ms**
+**Total: 1.74ms**
 <!--- benchmarking table --->
 
 ---
