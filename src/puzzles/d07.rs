@@ -81,44 +81,41 @@ impl<C: Card> PartialEq for Hand<C> {
 }
 impl<C: Card> Eq for Hand<C> {}
 
+fn cmp_hands_by_counts<C: Card>(
+    hand_a: &Hand<C>,
+    hand_b: &Hand<C>,
+    card_counts_a: &[u8],
+    card_counts_b: &[u8],
+) -> Ordering {
+    if card_counts_a[0] != card_counts_b[0] {
+        return card_counts_a[0].cmp(&card_counts_b[0]);
+    } else if (card_counts_a[0] == 3 || card_counts_a[0] == 2)
+        && card_counts_a[1] != card_counts_b[1]
+    {
+        return card_counts_a[1].cmp(&card_counts_b[1]);
+    }
+
+    for (c1, c2) in zip(hand_a.cards, hand_b.cards) {
+        if c1 != c2 {
+            return c1.cmp(&c2);
+        }
+    }
+    Ordering::Equal
+}
+
 impl Ord for Hand<Card1> {
     fn cmp(&self, other: &Self) -> Ordering {
         let self_count = self.sorted_counts();
         let other_count = other.sorted_counts();
-
-        if self_count[0] != other_count[0] {
-            return self_count[0].cmp(&other_count[0]);
-        } else if (self_count[0] == 3 || self_count[0] == 2) && self_count[1] != other_count[1] {
-            return self_count[1].cmp(&other_count[1]);
-        }
-
-        for (c1, c2) in zip(self.cards, other.cards) {
-            if c1 != c2 {
-                return c1.cmp(&c2);
-            }
-        }
-        Ordering::Equal
+        cmp_hands_by_counts(self, other, &self_count, &other_count)
     }
 }
 
 impl Ord for Hand<Card2> {
     fn cmp(&self, other: &Self) -> Ordering {
-        // TODO: DRY
         let self_count = self.sorted_counts();
         let other_count = other.sorted_counts();
-
-        if self_count[0] != other_count[0] {
-            return self_count[0].cmp(&other_count[0]);
-        } else if (self_count[0] == 3 || self_count[0] == 2) && self_count[1] != other_count[1] {
-            return self_count[1].cmp(&other_count[1]);
-        }
-
-        for (c1, c2) in zip(self.cards, other.cards) {
-            if c1 != c2 {
-                return c1.cmp(&c2);
-            }
-        }
-        Ordering::Equal
+        cmp_hands_by_counts(self, other, &self_count, &other_count)
     }
 }
 
@@ -166,7 +163,7 @@ impl Hand<Card2> {
     }
 }
 
-pub trait Card: Eq + Copy + Clone + Hash + PartialEq {
+pub trait Card: Eq + Copy + Clone + Hash + PartialEq + PartialOrd + Ord {
     fn new(c: char) -> Option<Self>;
     fn value(&self) -> u8;
 }
