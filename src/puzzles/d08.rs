@@ -46,6 +46,20 @@ impl Network {
             .iter()
             .map(|n| self.n_steps_from_to_multiple(n, &z_nodes))
             .map(u64::from)
+            // Take the Lowest Common Multiple (LCM) of the number of steps
+            // required for every individual A-node. E.g. if one A-node reaches
+            // a Z-node in 3 steps and another one in 4 steps, both will reach a
+            // Z-node in 12 steps. This only works because (apparently) the
+            // network has a very particular arrangement that means that,
+            // starting at an A-node, you cycle to a Z-node at regular
+            // intervals. E.g.
+            // A1 -> B1 -> C1 -> D1 -> Z1 ─¬
+            //       ^                     │
+            //       └---------------------⅃
+            // Here, starting at A1, you cycle to Z1 every 4 steps. I only
+            // discovered this by accident; this solution is really not correct
+            // according to the puzzle specification (since nothing is mentioned
+            // about these cycles), but "it works on my input" ¯\_(ツ)_/¯.
             .reduce(lcm)
             .unwrap()
     }
