@@ -68,7 +68,7 @@ struct HistoryDiffs {
 
 impl HistoryDiffs {
     fn new(history: History) -> Self {
-        let diffs = Vec::with_capacity(history.nums.len() - 1); // TODO: initialize when needed
+        let diffs = Vec::with_capacity(history.nums.len() - 1);
         let prev_diffs = history.nums;
 
         HistoryDiffs { diffs, prev_diffs }
