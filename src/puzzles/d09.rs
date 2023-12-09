@@ -24,8 +24,12 @@ impl FromStr for Report {
 }
 
 impl Report {
-    pub fn sum_extrapolated(&self) -> i32 {
-        self.histories.iter().map(|h| h.pred_next()).sum()
+    pub fn sum_extrapolated(self) -> i32 {
+        self.histories.into_iter().map(|h| h.pred_next()).sum()
+    }
+
+    pub fn sum_extrapolated_backwards(self) -> i32 {
+        self.histories.into_iter().map(|h| h.pred_prev()).sum()
     }
 }
 
@@ -34,30 +38,57 @@ struct History {
 }
 
 impl History {
-    fn pred_next(&self) -> i32 {
+    fn pred_next(self) -> i32 {
         let mut next = *self.nums.last().unwrap();
-        let mut diffs = Vec::with_capacity(self.nums.len() - 1);
-        let mut prev_diffs = Vec::with_capacity(self.nums.len() - 2);
-
-        let mut curr_series = &self.nums;
-        loop {
-            diffs.clear();
-            let mut all_zeroes = true;
-            for i in 1..curr_series.len() {
-                let diff = curr_series[i] - curr_series[i - 1];
-                diffs.push(diff);
-                all_zeroes = all_zeroes && (diff == 0);
-            }
-
-            if all_zeroes {
-                break;
-            }
-
+        let mut hist_diffs = HistoryDiffs::new(self);
+        while let Some(diffs) = hist_diffs.next_diffs() {
             next += diffs.last().unwrap();
-            std::mem::swap(&mut diffs, &mut prev_diffs);
-            curr_series = &prev_diffs;
         }
 
         next
+    }
+
+    fn pred_prev(self) -> i32 {
+        let mut prev = *self.nums.first().unwrap();
+        let mut mult = 1;
+        let mut hist_diffs = HistoryDiffs::new(self);
+        while let Some(diffs) = hist_diffs.next_diffs() {
+            mult *= -1;
+            prev += mult * diffs.first().unwrap();
+        }
+
+        prev
+    }
+}
+
+struct HistoryDiffs {
+    diffs: Vec<i32>,
+    prev_diffs: Vec<i32>,
+}
+
+impl HistoryDiffs {
+    fn new(history: History) -> Self {
+        let diffs = Vec::with_capacity(history.nums.len() - 1); // TODO: initialize when needed
+        let prev_diffs = history.nums;
+
+        HistoryDiffs { diffs, prev_diffs }
+    }
+
+    fn next_diffs(&mut self) -> Option<&[i32]> {
+        self.diffs.clear();
+        let mut all_zeroes = true;
+        for i in 1..self.prev_diffs.len() {
+            let diff = self.prev_diffs[i] - self.prev_diffs[i - 1];
+            self.diffs.push(diff);
+            all_zeroes = all_zeroes && (diff == 0);
+        }
+
+        if all_zeroes {
+            return None;
+        }
+
+        std::mem::swap(&mut self.diffs, &mut self.prev_diffs);
+
+        Some(&self.prev_diffs)
     }
 }
