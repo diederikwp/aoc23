@@ -4,11 +4,12 @@ advent_of_code::solution!(8);
 
 pub fn part_one(input: &str) -> Option<u32> {
     let network: Network = input.parse().unwrap();
-    Some(network.n_steps_from_to("AAA", "ZZZ"))
+    Some(network.n_steps_from_to_single("AAA", "ZZZ"))
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u64> {
+    let network: Network = input.parse().unwrap();
+    Some(network.n_steps_all_a_to_all_z())
 }
 
 #[cfg(test)]
@@ -30,7 +31,9 @@ mod tests {
 
     #[test]
     fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        let result = part_two(&advent_of_code::template::read_file_part(
+            "examples", DAY, 3,
+        ));
+        assert_eq!(result, Some(6));
     }
 }

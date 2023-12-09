@@ -1,6 +1,7 @@
 use std::{error::Error, str::FromStr};
 
-use rustc_hash::FxHashMap;
+use num_integer::lcm;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub struct Network {
     instructions: Vec<Direction>,
@@ -8,7 +9,7 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn n_steps_from_to(&self, from: &str, to: &str) -> u32 {
+    pub fn n_steps_from_to_single(&self, from: &str, to: &str) -> u32 {
         let from_node: Node = from.parse().unwrap();
         let to_node: Node = to.parse().unwrap();
 
@@ -20,6 +21,45 @@ impl Network {
             node = match direction {
                 Direction::Left => self.edges[&node].0.clone(),
                 Direction::Right => self.edges[&node].1.clone(),
+            };
+            steps += 1;
+        }
+
+        steps
+    }
+
+    pub fn n_steps_all_a_to_all_z(&self) -> u64 {
+        let a_nodes: Vec<Node> = self
+            .edges
+            .keys()
+            .filter(|n| n.0[2] == 'A')
+            .cloned()
+            .collect();
+        let z_nodes: FxHashSet<Node> = self
+            .edges
+            .keys()
+            .filter(|n| n.0[2] == 'Z')
+            .cloned()
+            .collect();
+
+        a_nodes
+            .iter()
+            .map(|n| self.n_steps_from_to_multiple(n, &z_nodes))
+            .map(u64::from)
+            .reduce(lcm)
+            .unwrap()
+    }
+
+    fn n_steps_from_to_multiple(&self, from: &Node, to: &FxHashSet<Node>) -> u32 {
+        let mut node = from;
+        let mut directions = self.instructions.iter().cycle();
+
+        let mut steps = 0;
+        while !to.contains(node) {
+            let direction = directions.next().unwrap();
+            node = match direction {
+                Direction::Left => &self.edges[node].0,
+                Direction::Right => &self.edges[node].1,
             };
             steps += 1;
         }

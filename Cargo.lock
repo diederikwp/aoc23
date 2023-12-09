@@ -8,6 +8,7 @@ version = "0.0.1"
 dependencies = [
  "lazy_static",
  "ndarray",
+ "num-integer",
  "pico-args",
  "regex",
  "rustc-hash",
