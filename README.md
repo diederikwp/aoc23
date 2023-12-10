@@ -10,17 +10,18 @@ Repository structure based on [this template](https://github.com/fspoettel/adven
 
 | Day | Part 1 | Part 2 |
 | :---: | :---: | :---:  |
-| [Day 1](./src/bin/01.rs) | `25.0µs` | `1.1ms` |
-| [Day 2](./src/bin/02.rs) | `34.6µs` | `34.7µs` |
-| [Day 3](./src/bin/03.rs) | `50.9µs` | `91.2µs` |
-| [Day 4](./src/bin/04.rs) | `100.9µs` | `101.7µs` |
-| [Day 5](./src/bin/05.rs) | `17.8µs` | `30.6µs` |
-| [Day 6](./src/bin/06.rs) | `175.0ns` | `243.0ns` |
-| [Day 7](./src/bin/07.rs) | `671.4µs` | `1.2ms` |
-| [Day 8](./src/bin/08.rs) | `225.7µs` | `989.8µs` |
-| [Day 9](./src/bin/09.rs) | `104.3µs` | `104.2µs` |
+| [Day 1](./src/bin/01.rs) | `25.8µs` | `1.1ms` |
+| [Day 2](./src/bin/02.rs) | `33.8µs` | `33.7µs` |
+| [Day 3](./src/bin/03.rs) | `54.9µs` | `90.5µs` |
+| [Day 4](./src/bin/04.rs) | `103.7µs` | `106.2µs` |
+| [Day 5](./src/bin/05.rs) | `19.1µs` | `30.3µs` |
+| [Day 6](./src/bin/06.rs) | `334.0ns` | `414.0ns` |
+| [Day 7](./src/bin/07.rs) | `689.2µs` | `1.3ms` |
+| [Day 8](./src/bin/08.rs) | `233.6µs` | `1.0ms` |
+| [Day 9](./src/bin/09.rs) | `104.0µs` | `104.4µs` |
+| [Day 10](./src/bin/10.rs) | `94.8µs` | `-` |
 
-**Total: 4.88ms**
+**Total: 5.12ms**
 <!--- benchmarking table --->
 
 ---
