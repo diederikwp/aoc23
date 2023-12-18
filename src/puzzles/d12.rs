@@ -19,8 +19,12 @@ impl FromStr for Field {
 }
 
 impl Field {
-    pub fn total_arrangement_count(&self) -> u32 {
+    pub fn total_arrangement_count(&self) -> u64 {
         self.springs.iter().map(|s| s.arrangement_count()).sum()
+    }
+
+    pub fn total_arrangement_count_extended(&self) -> u64 {
+        self.springs.iter().map(|s| s.extend().arrangement_count()).sum()
     }
 }
 
@@ -50,7 +54,7 @@ impl FromStr for Springs {
 }
 
 impl Springs {
-    fn arrangement_count(&self) -> u32 {
+    fn arrangement_count(&self) -> u64 {
         // counts[(i, j)] holds the number of possible arrangements for groups[..i] and row[..j]
         let n = self.groups.len() + 1;
         let m = self.row.len() + 1;
@@ -78,7 +82,7 @@ impl Springs {
         counts[(n - 1, m - 1)]
     }
 
-    fn calc_single_count(&self, i: usize, j: usize, counts: &Array2<u32>) -> u32 {
+    fn calc_single_count(&self, i: usize, j: usize, counts: &Array2<u64>) -> u64 {
         let row_char = self.row[j - 1];
         let group_len = self.groups[i - 1];
 
@@ -103,5 +107,21 @@ impl Springs {
         }
 
         answer
+    }
+
+    fn extend(&self) -> Self {
+        let mut extended_row = Vec::with_capacity(self.row.len() * 5);
+        extended_row.extend_from_slice(&self.row);
+        for _ in 0..4 {
+            extended_row.push(b'?');
+            extended_row.extend_from_slice(&self.row[1..]); // skip the prepended '.'
+        }
+
+        let mut extended_groups = Vec::with_capacity(self.groups.len() * 5);
+        for _ in 0..5 {
+            extended_groups.extend_from_slice(&self.groups)
+        }
+
+        Springs { row: extended_row, groups: extended_groups }
     }
 }
