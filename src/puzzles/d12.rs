@@ -24,7 +24,10 @@ impl Field {
     }
 
     pub fn total_arrangement_count_extended(&self) -> u64 {
-        self.springs.iter().map(|s| s.extend().arrangement_count()).sum()
+        self.springs
+            .iter()
+            .map(|s| s.extend().arrangement_count())
+            .sum()
     }
 }
 
@@ -122,6 +125,9 @@ impl Springs {
             extended_groups.extend_from_slice(&self.groups)
         }
 
-        Springs { row: extended_row, groups: extended_groups }
+        Springs {
+            row: extended_row,
+            groups: extended_groups,
+        }
     }
 }
