@@ -23,10 +23,5 @@ mod tests {
         let result = part_one(&advent_of_code::template::read_file("examples", DAY));
         assert_eq!(result, Some(374));
     }
-
-    #[test]
-    fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None); // No test case available. See unit tests in crate::puzzles::d11
-    }
+    // No test case available for part 1. See unit tests in crate::puzzles::d11
 }
