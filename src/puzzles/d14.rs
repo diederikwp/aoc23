@@ -1,6 +1,7 @@
 use std::{error::Error, str::FromStr};
 
 use ndarray::{Array, Array2};
+use rustc_hash::FxHashMap;
 
 pub struct Platform {
     grid: Array2<u8>,
@@ -35,6 +36,86 @@ impl Platform {
                     _ => panic!("Illegal character"),
                 }
             }
+        }
+    }
+
+    pub fn slide_east(&mut self) {
+        for mut row in self.grid.rows_mut() {
+            let mut to_idx = row.len() - 1;
+            for i in (0..row.len()).rev() {
+                match row[i] {
+                    b'#' => to_idx = i.saturating_sub(1),
+                    b'O' => {
+                        row[i] = b'.';
+                        row[to_idx] = b'O';
+                        to_idx = to_idx.saturating_sub(1);
+                    }
+                    b'.' => (),
+                    _ => panic!("Illegal character"),
+                }
+            }
+        }
+    }
+
+    pub fn slide_south(&mut self) {
+        for mut col in self.grid.columns_mut() {
+            let mut to_idx = col.len() - 1;
+            for i in (0..col.len()).rev() {
+                match col[i] {
+                    b'#' => to_idx = i.saturating_sub(1),
+                    b'O' => {
+                        col[i] = b'.';
+                        col[to_idx] = b'O';
+                        to_idx = to_idx.saturating_sub(1);
+                    }
+                    b'.' => (),
+                    _ => panic!("Illegal character"),
+                }
+            }
+        }
+    }
+
+    pub fn slide_west(&mut self) {
+        for mut row in self.grid.rows_mut() {
+            let mut to_idx = 0;
+            for i in 0..row.len() {
+                match row[i] {
+                    b'#' => to_idx = i + 1,
+                    b'O' => {
+                        row[i] = b'.';
+                        row[to_idx] = b'O';
+                        to_idx += 1;
+                    }
+                    b'.' => (),
+                    _ => panic!("Illegal character"),
+                }
+            }
+        }
+    }
+
+    pub fn spin(&mut self, n_iter: usize) {
+        let mut history: FxHashMap<Array2<u8>, usize> = FxHashMap::default();
+
+        for i in 0..n_iter {
+            self.slide_north();
+            self.slide_west();
+            self.slide_south();
+            self.slide_east();
+
+            if let Some(n) = history.get(&self.grid) {
+                // It will repeat itself every i - n cycles.
+                let period = i - n;
+                let value_final = (n_iter - 1 - n) % period + n;
+
+                for (key, &value) in &history {
+                    if value == value_final {
+                        self.grid = key.clone();
+                        return;
+                    }
+                }
+            }
+
+            history.insert(self.grid.clone(), i);
         }
     }
 
