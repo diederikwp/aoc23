@@ -62,6 +62,44 @@ impl MirrorGrid {
         BeamPath(path)
     }
 
+    pub fn find_max_energized_tiles(&self) -> u32 {
+        let (height, width) = (
+            isize::try_from(self.grid.shape()[0]).unwrap(),
+            isize::try_from(self.grid.shape()[1]).unwrap(),
+        );
+        let mut max = 0;
+
+        // Top edge
+        for x in 0..width {
+            let n_energized = self.follow_beam((0, x), Direction::South).num_energized();
+            max = u32::max(max, n_energized);
+        }
+
+        // Right edge
+        for y in 0..height {
+            let n_energized = self
+                .follow_beam((y, width - 1), Direction::West)
+                .num_energized();
+            max = u32::max(max, n_energized);
+        }
+
+        // Bottom edge
+        for x in 0..width {
+            let n_energized = self
+                .follow_beam((height - 1, x), Direction::North)
+                .num_energized();
+            max = u32::max(max, n_energized);
+        }
+
+        // Left edge
+        for y in 0..height {
+            let n_energized = self.follow_beam((y, 0), Direction::East).num_energized();
+            max = u32::max(max, n_energized);
+        }
+
+        max
+    }
+
     fn follow_beam_step(
         &self,
         head_pos: (isize, isize),
