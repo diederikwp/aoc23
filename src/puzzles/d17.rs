@@ -19,8 +19,16 @@ impl FromStr for Map {
 }
 
 impl Map {
+    pub fn cheapest_path_cost_normal(&self) -> Option<u32> {
+        self.cheapest_path_cost::<Crucible>()
+    }
+
+    pub fn cheapest_path_cost_ultra(&self) -> Option<u32> {
+        self.cheapest_path_cost::<UltraCrucible>()
+    }
+
     /// Find the cost of the shortest path using the A* algorithm
-    pub fn cheapest_path_cost(&self) -> Option<u32> {
+    fn cheapest_path_cost<T: Node>(&self) -> Option<u32> {
         // visited contains nodes fully expanded
         let mut visited = FxHashSet::default();
         // The frontier contains nodes discovered but not fully expanded yet, as
@@ -32,20 +40,16 @@ impl Map {
         // discovered node.
         let mut best_cost = FxHashMap::default();
 
-        let start_node = Node {
-            pos: (0, 0),
-            // start direction South disallows turning back North, but that is
-            // ok because that would take us of the map.
-            direction: Direction::South,
-            remaining_steps: 3,
-        };
+        // start direction South disallows turning back North, but that is
+        // ok because that would take us of the map.
+        let start_node = T::new((0, 0), Direction::South);
         let start_heuristic = Self::manhattan_dist((0, 0), self.target());
 
         frontier.push(Reverse((start_heuristic, 0, start_node.clone())));
         best_cost.insert(start_node, 0);
 
         while let Some(Reverse((_, cost, node))) = frontier.pop() {
-            if node.pos == self.target() {
+            if node.pos() == self.target() && node.can_stop() {
                 return Some(cost);
             }
 
@@ -58,7 +62,7 @@ impl Map {
                     continue; // We already visited this node
                 }
 
-                let neighbour_cost = cost + u32::from(self.0[neighbour.pos]);
+                let neighbour_cost = cost + u32::from(self.0[neighbour.pos()]);
                 if best_cost
                     .get(&neighbour)
                     .is_some_and(|&c| c <= neighbour_cost)
@@ -67,9 +71,12 @@ impl Map {
                 }
                 best_cost.insert(neighbour.clone(), neighbour_cost);
 
-                let neighbour_heuristic =
-                    neighbour_cost + Self::manhattan_dist(neighbour.pos, self.target());
-                frontier.push(Reverse((neighbour_heuristic, neighbour_cost, neighbour)));
+                let neighbour_heuristic_total = neighbour_cost + neighbour.heuristic(self);
+                frontier.push(Reverse((
+                    neighbour_heuristic_total,
+                    neighbour_cost,
+                    neighbour,
+                )));
             }
             visited.insert(node);
         }
@@ -87,15 +94,35 @@ impl Map {
     }
 }
 
+trait Node: Clone + std::hash::Hash + Ord + Sized {
+    fn new(start_pos: (usize, usize), start_direction: Direction) -> Self;
+    fn pos(&self) -> (usize, usize);
+    fn get_all_neighbours(&self, map: &Map) -> [Option<Self>; 4];
+    fn can_stop(&self) -> bool;
+    fn heuristic(&self, map: &Map) -> u32;
+}
+
 #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
-struct Node {
+struct Crucible {
     pos: (usize, usize),
     direction: Direction,
     remaining_steps: u8, // How many more steps are allowed in direction
 }
 
-impl Node {
-    fn get_all_neighbours(&self, map: &Map) -> [Option<Node>; 4] {
+impl Node for Crucible {
+    fn new(start_pos: (usize, usize), start_direction: Direction) -> Self {
+        Crucible {
+            pos: start_pos,
+            direction: start_direction,
+            remaining_steps: 3,
+        }
+    }
+
+    fn pos(&self) -> (usize, usize) {
+        self.pos
+    }
+
+    fn get_all_neighbours(&self, map: &Map) -> [Option<Crucible>; 4] {
         [
             self.get_neighbour(Direction::North, map),
             self.get_neighbour(Direction::East, map),
@@ -104,7 +131,17 @@ impl Node {
         ]
     }
 
-    fn get_neighbour(&self, direction: Direction, map: &Map) -> Option<Node> {
+    fn can_stop(&self) -> bool {
+        true
+    }
+
+    fn heuristic(&self, map: &Map) -> u32 {
+        Map::manhattan_dist(self.pos, map.target())
+    }
+}
+
+impl Crucible {
+    fn get_neighbour(&self, direction: Direction, map: &Map) -> Option<Crucible> {
         let (height, width) = (map.0.shape()[0], map.0.shape()[1]);
 
         let pos = match direction {
@@ -156,10 +193,119 @@ impl Node {
             2
         };
 
-        Some(Node {
+        Some(Crucible {
             pos,
             direction,
             remaining_steps,
+        })
+    }
+}
+
+#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
+struct UltraCrucible {
+    pos: (usize, usize),
+    direction: Direction,
+    consecutive_steps: u8, // how many consecutive steps in direction it already performed
+}
+
+impl Node for UltraCrucible {
+    fn new(start_pos: (usize, usize), start_direction: Direction) -> Self {
+        UltraCrucible {
+            pos: start_pos,
+            direction: start_direction,
+            consecutive_steps: 0,
+        }
+    }
+
+    fn pos(&self) -> (usize, usize) {
+        self.pos
+    }
+
+    fn get_all_neighbours(&self, map: &Map) -> [Option<Self>; 4] {
+        [
+            self.get_neighbour(Direction::North, map),
+            self.get_neighbour(Direction::East, map),
+            self.get_neighbour(Direction::South, map),
+            self.get_neighbour(Direction::West, map),
+        ]
+    }
+
+    fn can_stop(&self) -> bool {
+        self.consecutive_steps >= 4
+    }
+
+    fn heuristic(&self, map: &Map) -> u32 {
+        Map::manhattan_dist(self.pos, map.target())
+    }
+}
+
+impl UltraCrucible {
+    fn get_neighbour(&self, direction: Direction, map: &Map) -> Option<UltraCrucible> {
+        let (height, width) = (map.0.shape()[0], map.0.shape()[1]);
+
+        let pos = match direction {
+            Direction::North => {
+                if self.pos.0 > 0
+                    && self.direction != Direction::South
+                    // Starting node is a special case; it can turn even though
+                    // it has not made 4 consecutive steps yet.
+                    && (self.consecutive_steps == 0
+                        || (self.direction != Direction::North && self.consecutive_steps >= 4)
+                        || (self.direction == Direction::North && self.consecutive_steps < 10))
+                {
+                    Some((self.pos.0 - 1, self.pos.1))
+                } else {
+                    None
+                }
+            }
+            Direction::East => {
+                if self.pos.1 < width - 1
+                    && self.direction != Direction::West
+                    && (self.consecutive_steps == 0
+                        || (self.direction != Direction::East && self.consecutive_steps >= 4)
+                        || (self.direction == Direction::East && self.consecutive_steps < 10))
+                {
+                    Some((self.pos.0, self.pos.1 + 1))
+                } else {
+                    None
+                }
+            }
+            Direction::South => {
+                if self.pos.0 < height - 1
+                    && self.direction != Direction::North
+                    && (self.consecutive_steps == 0
+                        || (self.direction != Direction::South && self.consecutive_steps >= 4)
+                        || (self.direction == Direction::South && self.consecutive_steps < 10))
+                {
+                    Some((self.pos.0 + 1, self.pos.1))
+                } else {
+                    None
+                }
+            }
+            Direction::West => {
+                if self.pos.1 > 0
+                    && self.direction != Direction::East
+                    && (self.consecutive_steps == 0
+                        || (self.direction != Direction::West && self.consecutive_steps >= 4)
+                        || (self.direction == Direction::West && self.consecutive_steps < 10))
+                {
+                    Some((self.pos.0, self.pos.1 - 1))
+                } else {
+                    None
+                }
+            }
+        }?;
+
+        let consecutive_steps = if self.direction == direction {
+            self.consecutive_steps + 1
+        } else {
+            1
+        };
+
+        Some(UltraCrucible {
+            pos,
+            direction,
+            consecutive_steps,
         })
     }
 }
