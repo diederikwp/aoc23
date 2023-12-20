@@ -10,25 +10,26 @@ Repository structure based on [this template](https://github.com/fspoettel/adven
 
 | Day | Part 1 | Part 2 |
 | :---: | :---: | :---:  |
-| [Day 1](./src/bin/01.rs) | `25.9µs` | `1.1ms` |
-| [Day 2](./src/bin/02.rs) | `36.0µs` | `36.2µs` |
-| [Day 3](./src/bin/03.rs) | `50.2µs` | `87.4µs` |
-| [Day 4](./src/bin/04.rs) | `103.0µs` | `103.3µs` |
-| [Day 5](./src/bin/05.rs) | `19.3µs` | `31.9µs` |
-| [Day 6](./src/bin/06.rs) | `187.0ns` | `264.0ns` |
-| [Day 7](./src/bin/07.rs) | `732.2µs` | `1.3ms` |
-| [Day 8](./src/bin/08.rs) | `222.0µs` | `1.0ms` |
-| [Day 9](./src/bin/09.rs) | `114.0µs` | `115.2µs` |
-| [Day 10](./src/bin/10.rs) | `146.1µs` | `1.1ms` |
-| [Day 11](./src/bin/11.rs) | `22.2µs` | `22.1µs` |
-| [Day 12](./src/bin/12.rs) | `476.1µs` | `4.5ms` |
-| [Day 13](./src/bin/13.rs) | `81.2µs` | `96.6µs` |
-| [Day 14](./src/bin/14.rs) | `39.0µs` | `11.2ms` |
-| [Day 15](./src/bin/15.rs) | `303.0µs` | `361.6µs` |
-| [Day 16](./src/bin/16.rs) | `69.9µs` | `15.3ms` |
-| [Day 17](./src/bin/17.rs) | `34.8ms` | `142.1ms` |
+| [Day 1](./src/bin/01.rs) | `28.8µs` | `1.1ms` |
+| [Day 2](./src/bin/02.rs) | `36.0µs` | `36.1µs` |
+| [Day 3](./src/bin/03.rs) | `47.9µs` | `84.2µs` |
+| [Day 4](./src/bin/04.rs) | `111.1µs` | `114.7µs` |
+| [Day 5](./src/bin/05.rs) | `20.4µs` | `31.0µs` |
+| [Day 6](./src/bin/06.rs) | `301.0ns` | `397.0ns` |
+| [Day 7](./src/bin/07.rs) | `675.8µs` | `1.2ms` |
+| [Day 8](./src/bin/08.rs) | `231.5µs` | `1.0ms` |
+| [Day 9](./src/bin/09.rs) | `109.2µs` | `108.9µs` |
+| [Day 10](./src/bin/10.rs) | `144.9µs` | `1.1ms` |
+| [Day 11](./src/bin/11.rs) | `25.7µs` | `25.7µs` |
+| [Day 12](./src/bin/12.rs) | `466.2µs` | `4.3ms` |
+| [Day 13](./src/bin/13.rs) | `79.9µs` | `92.7µs` |
+| [Day 14](./src/bin/14.rs) | `38.3µs` | `10.9ms` |
+| [Day 15](./src/bin/15.rs) | `287.5µs` | `346.2µs` |
+| [Day 16](./src/bin/16.rs) | `63.1µs` | `13.6ms` |
+| [Day 17](./src/bin/17.rs) | `33.2ms` | `138.8ms` |
+| [Day 18](./src/bin/18.rs) | `61.6µs` | `60.8µs` |
 
-**Total: 215.69ms**
+**Total: 208.53ms**
 <!--- benchmarking table --->
 
 ---

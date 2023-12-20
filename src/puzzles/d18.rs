@@ -1,8 +1,6 @@
 use std::{error::Error, str::FromStr};
 
-use ndarray::Array2;
-
-pub struct DigPlan(Vec<Instruction>);
+pub struct DigPlan(Vec<InstructionParams>);
 
 impl FromStr for DigPlan {
     type Err = Box<dyn Error>;
@@ -11,148 +9,99 @@ impl FromStr for DigPlan {
         let instructions = s
             .lines()
             .map(|l| l.parse())
-            .collect::<Result<Vec<Instruction>, _>>()?;
+            .collect::<Result<Vec<InstructionParams>, _>>()?;
 
         Ok(DigPlan(instructions))
     }
 }
 
 impl DigPlan {
-    pub fn dig_terrain(&self) -> Terrain {
-        // Make a list of coordinates of the dug out path, keeping track of the
-        // bounding box.
-        let mut dug_tiles = Vec::new();
-        let mut y_range = (0, 0);
-        let mut x_range = (0, 0);
+    pub fn dig_terrain_using_depth(self) -> Terrain {
+        let instructions = self.0.into_iter().map(|ip| ip.into_instruction_as_is());
+        DigPlan::dig_terrain(instructions)
+    }
+
+    pub fn dig_terrain_using_color(self) -> Terrain {
+        let instructions = self
+            .0
+            .into_iter()
+            .map(|ip| ip.into_instruction_using_color());
+        DigPlan::dig_terrain(instructions)
+    }
+
+    fn dig_terrain<I: IntoIterator<Item = Instruction>>(instructions: I) -> Terrain {
+        // Make a list of the vertices of the dug out path
+        let mut verts = Vec::new();
         let mut pos = (0, 0);
 
-        for idx in 0..self.0.len() {
-            let instruction = &self.0[idx];
-            let ((dy, dx), tile) = match instruction.direction {
-                Direction::Right => ((0, 1), b'-'),
-                Direction::Down => ((1, 0), b'|'),
-                Direction::Left => ((0, -1), b'-'),
-                Direction::Up => ((-1, 0), b'|'),
+        for instruction in instructions.into_iter() {
+            let (dy, dx) = match instruction.direction {
+                Direction::Right => (0, 1),
+                Direction::Down => (1, 0),
+                Direction::Left => (0, -1),
+                Direction::Up => (-1, 0),
             };
 
-            for _ in 0..instruction.depth {
-                pos.0 += dy;
-                pos.1 += dx;
-                dug_tiles.push((pos, tile));
-
-                y_range = (isize::min(y_range.0, pos.0), isize::max(y_range.1, pos.0));
-                x_range = (isize::min(x_range.0, pos.1), isize::max(x_range.1, pos.1));
-            }
-
-            // Replace the last one by the appropriate corner
-            let next_instruction = &self.0[(idx + 1) % self.0.len()]; // assume circular path
-            let tile = match (instruction.direction, next_instruction.direction) {
-                (Direction::Right, Direction::Up) => b'J',
-                (Direction::Right, Direction::Down) => b'7',
-                (Direction::Down, Direction::Right) => b'L',
-                (Direction::Down, Direction::Left) => b'J',
-                (Direction::Left, Direction::Up) => b'L',
-                (Direction::Left, Direction::Down) => b'F',
-                (Direction::Up, Direction::Right) => b'F',
-                (Direction::Up, Direction::Left) => b'7',
-
-                _ => panic!("Invalid instruction sequence"), // cannot turn 180° or repeat same direction
-            };
-            dug_tiles.pop();
-            dug_tiles.push((pos, tile));
-        }
-
-        // Transform to a 2D array.
-        let shape = (
-            usize::try_from(y_range.1 - y_range.0 + 1).unwrap(),
-            usize::try_from(x_range.1 - x_range.0 + 1).unwrap(),
-        );
-        let mut terrain = Array2::from_elem(shape, b'.');
-        for ((y, x), tile) in dug_tiles {
-            let pos = (
-                usize::try_from(y - y_range.0).unwrap(),
-                usize::try_from(x - x_range.0).unwrap(),
+            pos = (
+                pos.0 + i64::from(instruction.depth) * dy,
+                pos.1 + i64::from(instruction.depth) * dx,
             );
-            terrain[pos] = tile;
+            verts.push(pos);
         }
 
-        Terrain(terrain)
+        Terrain(verts)
     }
 }
 
-pub struct Terrain(Array2<u8>);
+pub struct Terrain(Vec<(i64, i64)>); // Vec of vertices
 
 impl Terrain {
-    pub fn interior_area(&self) -> u32 {
-        // assuming the dug path forms a closed loop
-        let mut area = 0;
+    pub fn total_area(&self) -> u64 {
+        self.interior_area() + self.perimeter_area()
+    }
 
-        for y in 0..self.0.shape()[0] {
-            let mut state = ScanState::Outside;
+    fn interior_area(&self) -> u64 {
+        // assuming the dug path forms a closed loop, calculate the area using
+        // the trapezoid formula.
+        let sum = std::iter::zip(&self.0, self.0.iter().cycle().skip(1))
+            .map(|(vert, next_vert)| (vert.0 + next_vert.0) * (vert.1 - next_vert.1))
+            .sum::<i64>()
+            .abs()
+            / 2;
 
-            for x in 0..self.0.shape()[1] {
-                match self.0[(y, x)] {
-                    b'-' => area += 1,
-                    b'|' => {
-                        area += 1;
-                        state = match state {
-                            ScanState::Inside => ScanState::Outside,
-                            ScanState::Outside => ScanState::Inside,
-                            _ => panic!("Invalid tile"),
-                        }
-                    }
-                    b'.' => match state {
-                        ScanState::Inside => area += 1,
-                        ScanState::Outside => (),
-                        _ => panic!("Invalid tile"),
-                    },
-                    b'L' => {
-                        area += 1;
-                        state = match state {
-                            ScanState::Inside => ScanState::UpperEdge,
-                            ScanState::Outside => ScanState::LowerEdge,
-                            _ => panic!("Invalid tile"),
-                        }
-                    }
-                    b'J' => {
-                        area += 1;
-                        state = match state {
-                            ScanState::UpperEdge => ScanState::Inside,
-                            ScanState::LowerEdge => ScanState::Outside,
-                            _ => panic!("Invalid tile"),
-                        }
-                    }
-                    b'7' => {
-                        area += 1;
-                        state = match state {
-                            ScanState::UpperEdge => ScanState::Outside,
-                            ScanState::LowerEdge => ScanState::Inside,
-                            _ => panic!("Invalid tile"),
-                        }
-                    }
-                    b'F' => {
-                        area += 1;
-                        state = match state {
-                            ScanState::Inside => ScanState::LowerEdge,
-                            ScanState::Outside => ScanState::UpperEdge,
-                            _ => panic!("Invalid tile"),
-                        }
-                    }
-                    _ => panic!("Invalid tile"),
-                };
-            }
-        }
+        u64::try_from(sum).unwrap()
+    }
 
-        area
+    fn perimeter_area(&self) -> u64 {
+        // Since we work with discrete "pixels", the perimeter has itself an
+        // area. Going clockwise, there is a contribution of 3/4 for every right
+        // corner and 1/4 for every left corner.
+        let n = self.0.len();
+        let n_left_right_pairs = (n - 4) / 2;
+        let n_right = 4 + n_left_right_pairs;
+        let n_left = n_left_right_pairs;
+        let area_corners = (3 * n_right + n_left) / 4;
+
+        // Every straight piece of perimeter contributes 1/2
+        let area_straight = std::iter::zip(&self.0, self.0.iter().cycle().skip(1))
+            .map(|(vert, next_vert)| {
+                (vert.0 - next_vert.0).abs() + (vert.1 - next_vert.1).abs() - 1
+            })
+            .sum::<i64>()
+            .abs()
+            / 2;
+
+        u64::try_from(area_corners).unwrap() + u64::try_from(area_straight).unwrap()
     }
 }
 
-struct Instruction {
+struct InstructionParams {
     direction: Direction,
     depth: u8,
+    color: [u8; 3],
 }
 
-impl FromStr for Instruction {
+impl FromStr for InstructionParams {
     type Err = Box<dyn Error>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -165,14 +114,56 @@ impl FromStr for Instruction {
             .next()
             .ok_or::<String>("Missing depth".into())?
             .parse()?;
-        parts.next().ok_or::<String>("Missing RGB".into())?; // skip the rgb for now
-
+        let rgb_str = parts
+            .next()
+            .ok_or::<String>("Missing RGB".into())?
+            .get(2..8)
+            .ok_or::<String>("rgb string should have 8 chars".into())?;
         if parts.next().is_some() {
             return Err("Too many parts".into());
         }
 
-        Ok(Instruction { direction, depth })
+        let color = [
+            u8::from_str_radix(&rgb_str[0..2], 16)?,
+            u8::from_str_radix(&rgb_str[2..4], 16)?,
+            u8::from_str_radix(&rgb_str[4..6], 16)?,
+        ];
+
+        Ok(InstructionParams {
+            direction,
+            depth,
+            color,
+        })
     }
+}
+
+impl InstructionParams {
+    fn into_instruction_as_is(self) -> Instruction {
+        Instruction {
+            direction: self.direction,
+            depth: u32::from(self.depth),
+        }
+    }
+
+    fn into_instruction_using_color(self) -> Instruction {
+        let depth =
+            u32::from_be_bytes([0, self.color[0], self.color[1], self.color[2] & 0xF0]) >> 4;
+        let direction_num = self.color[2] & 0x0F;
+        let direction = match direction_num {
+            0 => Direction::Right,
+            1 => Direction::Down,
+            2 => Direction::Left,
+            3 => Direction::Up,
+            _ => panic!("Invalid direction number"),
+        };
+
+        Instruction { direction, depth }
+    }
+}
+
+struct Instruction {
+    direction: Direction,
+    depth: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -199,11 +190,4 @@ impl FromStr for Direction {
             }
         }
     }
-}
-
-enum ScanState {
-    Inside,
-    Outside,
-    LowerEdge,
-    UpperEdge,
 }
