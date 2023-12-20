@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr};
+use std::{error::Error, ops::Range, str::FromStr};
 
 use rustc_hash::FxHashMap;
 
@@ -34,6 +34,48 @@ impl System {
             .filter(|&p| self.is_accepted(p))
             .map(|p| p.categories_total())
             .sum()
+    }
+
+    pub fn n_distinct_accepted(&self) -> u64 {
+        let mut matched_ranges = FxHashMap::default();
+        matched_ranges.insert("in".to_string(), vec![PartsRange::full_range()]);
+        let mut frontier = vec!["in".to_string()];
+
+        while let Some(wf_name) = frontier.pop() {
+            let wf = &self.workflows[&wf_name];
+            let Some(mut curr_ranges) = matched_ranges.remove(&wf_name) else {
+                continue;
+            };
+
+            for rule in &wf.rules {
+                let target = match &rule.action {
+                    Action::SendTo(wf_name) => {
+                        frontier.push(wf_name.to_string());
+                        wf_name
+                    }
+                    Action::Accept => "A",
+                    Action::Reject => "R",
+                };
+                let target_ranges = matched_ranges
+                    .entry(target.to_string())
+                    .or_insert(Vec::new());
+                let mut next_ranges = Vec::new();
+
+                for range in curr_ranges {
+                    if let Some(ref cond) = rule.condition {
+                        let (matched, mismatched) = range.split_by(cond);
+                        target_ranges.push(matched);
+                        next_ranges.push(mismatched);
+                    } else {
+                        target_ranges.push(range.clone());
+                    }
+                }
+
+                curr_ranges = next_ranges;
+            }
+        }
+
+        matched_ranges["A"].iter().map(|r| r.n_distinct()).sum()
     }
 
     fn is_accepted(&self, part: &Part) -> bool {
@@ -94,6 +136,132 @@ impl FromStr for Part {
             .parse()?;
 
         Ok(Part { x, m, a, s })
+    }
+}
+
+#[derive(Clone)]
+struct PartsRange {
+    x: Range<u32>,
+    m: Range<u32>,
+    a: Range<u32>,
+    s: Range<u32>,
+}
+
+impl PartsRange {
+    fn n_distinct(&self) -> u64 {
+        u64::try_from(self.x.len() * self.m.len() * self.a.len() * self.s.len()).unwrap()
+    }
+
+    fn full_range() -> Self {
+        PartsRange {
+            x: 1..4001,
+            m: 1..4001,
+            a: 1..4001,
+            s: 1..4001,
+        }
+    }
+
+    fn split_by(&self, condition: &Condition) -> (PartsRange, PartsRange) {
+        let (mut matched, mut mismatched) = (self.clone(), self.clone());
+
+        match condition.category {
+            b'x' => {
+                matched.x = Self::restrict_single_range(
+                    &matched.x,
+                    condition.operator,
+                    condition.value,
+                    true,
+                );
+                mismatched.x = Self::restrict_single_range(
+                    &mismatched.x,
+                    condition.operator,
+                    condition.value,
+                    false,
+                );
+            }
+            b'm' => {
+                matched.m = Self::restrict_single_range(
+                    &matched.m,
+                    condition.operator,
+                    condition.value,
+                    true,
+                );
+                mismatched.m = Self::restrict_single_range(
+                    &mismatched.m,
+                    condition.operator,
+                    condition.value,
+                    false,
+                );
+            }
+            b'a' => {
+                matched.a = Self::restrict_single_range(
+                    &matched.a,
+                    condition.operator,
+                    condition.value,
+                    true,
+                );
+                mismatched.a = Self::restrict_single_range(
+                    &mismatched.a,
+                    condition.operator,
+                    condition.value,
+                    false,
+                );
+            }
+            b's' => {
+                matched.s = Self::restrict_single_range(
+                    &matched.s,
+                    condition.operator,
+                    condition.value,
+                    true,
+                );
+                mismatched.s = Self::restrict_single_range(
+                    &mismatched.s,
+                    condition.operator,
+                    condition.value,
+                    false,
+                );
+            }
+            _ => panic!("Invalid category"),
+        }
+
+        (matched, mismatched)
+    }
+
+    fn restrict_single_range(
+        range: &Range<u32>,
+        operator: u8,
+        value: u32,
+        matched: bool,
+    ) -> Range<u32> {
+        let (min, max);
+
+        if matched {
+            match operator {
+                b'>' => {
+                    min = u32::max(range.start, value + 1);
+                    max = range.end;
+                }
+                b'<' => {
+                    min = range.start;
+                    max = u32::min(range.end, value);
+                }
+                _ => panic!("Invalid operator"),
+            };
+        } else {
+            match operator {
+                b'>' => {
+                    min = range.start;
+                    max = u32::min(range.end, value + 1);
+                }
+                b'<' => {
+                    min = u32::max(range.start, value);
+                    max = range.end;
+                }
+                _ => panic!("Invalid operator"),
+            };
+        }
+
+        min..max
     }
 }
 

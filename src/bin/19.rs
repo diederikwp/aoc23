@@ -7,8 +7,9 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(system.sum_accepted())
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u64> {
+    let system: System = input.parse().unwrap();
+    Some(system.n_distinct_accepted())
 }
 
 #[cfg(test)]
@@ -24,6 +25,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(167_409_079_868_000u64));
     }
 }
