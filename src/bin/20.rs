@@ -9,8 +9,9 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(n_low * n_high)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u64> {
+    let mut network: ModuleNetwork = input.parse().unwrap();
+    Some(network.steps_until_rx_first_low())
 }
 
 #[cfg(test)]
@@ -30,9 +31,5 @@ mod tests {
         assert_eq!(result, Some(11687500));
     }
 
-    #[test]
-    fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
-    }
+    // No test case for part 2
 }
