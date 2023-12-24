@@ -1,0 +1,25 @@
+use advent_of_code::puzzles::d21::Garden;
+
+advent_of_code::solution!(21);
+
+pub fn part_one(input: &str) -> Option<u32> {
+    let garden: Garden = input.parse().unwrap();
+    Some(garden.num_tiles_reacheable_after(64))
+}
+
+pub fn part_two(_input: &str) -> Option<u32> {
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Testcases can be found in module d21
+
+    #[test]
+    fn test_part_two() {
+        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
+        assert_eq!(result, None);
+    }
+}
