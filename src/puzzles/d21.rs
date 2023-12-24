@@ -36,21 +36,35 @@ impl FromStr for Garden {
 }
 
 impl Garden {
-    pub fn num_tiles_reacheable_after(&self, n_steps: u32) -> u32 {
+    pub fn num_tiles_reacheable_after(&self, n_steps: u32, with_wrapping: bool) -> u32 {
+        let start_pos = (
+            i32::try_from(self.start_pos.0).unwrap(),
+            i32::try_from(self.start_pos.1).unwrap(),
+        );
+
         // Keep track of after how many steps a position was first reached in
         // `reached_after`. If a position was reached after n steps, it will be
         // reached again after n + 2, n + 4, n + 6, etc.
         let mut reached_after = HashMap::default();
-        reached_after.insert(self.start_pos, 0);
+        reached_after.insert(start_pos, 0);
 
         let mut curr_positions = HashSet::default();
-        curr_positions.insert(self.start_pos);
+        curr_positions.insert(start_pos);
+
+        let get_neighbours = if with_wrapping {
+            Self::neighbours_with_wrapping
+        } else {
+            Self::neighbours
+        };
 
         for n in 0..n_steps {
             let mut next_positions = HashSet::default();
+
             for pos in curr_positions.into_iter() {
+                let neighbours = get_neighbours(self, &pos);
                 next_positions.extend(
-                    self.neighbours(&pos)
+                    neighbours
+                        .iter()
                         .filter(|pos| !reached_after.contains_key(pos)),
                 );
             }
@@ -72,8 +86,28 @@ impl Garden {
         .unwrap()
     }
 
-    fn neighbours<'a>(&'a self, pos: &(usize, usize)) -> impl Iterator<Item = (usize, usize)> + 'a {
-        let pos = (i32::try_from(pos.0).unwrap(), i32::try_from(pos.1).unwrap());
+    fn neighbours_with_wrapping(&self, pos: &(i32, i32)) -> Vec<(i32, i32)> {
+        let height = i32::try_from(self.grid.shape()[0]).unwrap();
+        let width = i32::try_from(self.grid.shape()[1]).unwrap();
+
+        [(0, 1), (-1, 0), (0, -1), (1, 0)]
+            .into_iter()
+            .map(move |(dy, dx)| (pos.0 + dy, pos.1 + dx))
+            .filter(|&neighbour_pos| {
+                let wrapped_pos = (
+                    neighbour_pos.0.rem_euclid(height),
+                    neighbour_pos.1.rem_euclid(width),
+                );
+                let usize_pos = (
+                    usize::try_from(wrapped_pos.0).unwrap(),
+                    usize::try_from(wrapped_pos.1).unwrap(),
+                );
+                self.grid[usize_pos] != b'#'
+            })
+            .collect()
+    }
+
+    fn neighbours(&self, pos: &(i32, i32)) -> Vec<(i32, i32)> {
         let height = i32::try_from(self.grid.shape()[0]).unwrap();
         let width = i32::try_from(self.grid.shape()[1]).unwrap();
 
@@ -86,13 +120,14 @@ impl Garden {
                     && neighbour_pos.1 >= 0
                     && neighbour_pos.1 < width
             })
-            .map(|neighbour_pos| {
-                (
+            .filter(|&neighbour_pos| {
+                let usize_pos = (
                     usize::try_from(neighbour_pos.0).unwrap(),
                     usize::try_from(neighbour_pos.1).unwrap(),
-                )
+                );
+                self.grid[usize_pos] != b'#'
             })
-            .filter(|&neighbour_pos| self.grid[neighbour_pos] != b'#')
+            .collect()
     }
 }
 
@@ -103,9 +138,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_num_tiles_reacheable_after() {
+    fn test_num_tiles_reacheable_after_wo_wrapping() {
         let input = crate::template::read_file("examples", Day::new(21).unwrap());
         let garden: Garden = input.parse().unwrap();
-        assert_eq!(garden.num_tiles_reacheable_after(6), 16);
+        assert_eq!(garden.num_tiles_reacheable_after(6, false), 16);
+    }
+
+    #[test]
+    fn test_num_tiles_reacheable_after_with_wrapping() {
+        let input = crate::template::read_file("examples", Day::new(21).unwrap());
+        let garden: Garden = input.parse().unwrap();
+
+        assert_eq!(garden.num_tiles_reacheable_after(6, true), 16);
+        assert_eq!(garden.num_tiles_reacheable_after(10, true), 50);
+        assert_eq!(garden.num_tiles_reacheable_after(50, true), 1594);
+        assert_eq!(garden.num_tiles_reacheable_after(100, true), 6536);
+        assert_eq!(garden.num_tiles_reacheable_after(500, true), 167004);
+        assert_eq!(garden.num_tiles_reacheable_after(1000, true), 668697);
+        assert_eq!(garden.num_tiles_reacheable_after(5000, true), 16733044);
     }
 }

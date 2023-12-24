@@ -4,7 +4,7 @@ advent_of_code::solution!(21);
 
 pub fn part_one(input: &str) -> Option<u32> {
     let garden: Garden = input.parse().unwrap();
-    Some(garden.num_tiles_reacheable_after(64))
+    Some(garden.num_tiles_reacheable_after(64, false))
 }
 
 pub fn part_two(_input: &str) -> Option<u32> {
