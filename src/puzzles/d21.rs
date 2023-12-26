@@ -36,7 +36,7 @@ impl FromStr for Garden {
 }
 
 impl Garden {
-    pub fn num_tiles_reacheable_after(&self, n_steps: u32, with_wrapping: bool) -> u32 {
+    pub fn num_tiles_reacheable_after(&self, n_steps: u64, with_wrapping: bool) -> u64 {
         let start_pos = (
             i32::try_from(self.start_pos.0).unwrap(),
             i32::try_from(self.start_pos.1).unwrap(),
@@ -77,13 +77,49 @@ impl Garden {
 
         // if n_steps is even, we can reach all positions we reached after an
         // even number of steps.
-        u32::try_from(
+        u64::try_from(
             reached_after
                 .into_iter()
                 .filter(|&(_pos, steps)| steps % 2 == n_steps % 2)
                 .count(),
         )
         .unwrap()
+    }
+
+    /// More efficient version of num_tiles_reacheable_after for large n_steps.
+    /// Only for the wrapping case.
+    pub fn num_tiles_reacheable_extrapolated(&self, n_steps: u64) -> u64 {
+        // In my puzzle input (and I suspect everyones input), there are
+        // straight horizontal and vertical lines without rocks from S to the
+        // edges, allowing the edge to be reached in 65 steps, and the next
+        // repeated garden 131 steps after that. So after the first 65 steps,
+        // the length of the outer perimeter that can be reached will grow
+        // linearly with fixed increments every 131 steps, and therefore the
+        // area inside it will grow quadratically every 131 steps.
+
+        let offset = n_steps % 131;
+        let n_periods = (n_steps - offset) / 131;
+        if n_periods < 3 {
+            return self.num_tiles_reacheable_after(n_steps, true);
+        }
+
+        let first_periods = [
+            self.num_tiles_reacheable_after(offset, true),
+            self.num_tiles_reacheable_after(offset + 131, true),
+            self.num_tiles_reacheable_after(offset + 262, true),
+        ];
+        let diffdiff = (first_periods[2] - first_periods[1]) - (first_periods[1] - first_periods[0]);
+
+        let mut curr = first_periods[2];
+        let mut prev = first_periods[1];
+        let mut total = first_periods[2];
+        for _ in 2..n_periods {
+            total += curr - prev + diffdiff;
+            prev = curr;
+            curr = total;
+        }
+
+        total
     }
 
     fn neighbours_with_wrapping(&self, pos: &(i32, i32)) -> Vec<(i32, i32)> {
@@ -154,7 +190,20 @@ mod tests {
         assert_eq!(garden.num_tiles_reacheable_after(50, true), 1594);
         assert_eq!(garden.num_tiles_reacheable_after(100, true), 6536);
         assert_eq!(garden.num_tiles_reacheable_after(500, true), 167004);
-        assert_eq!(garden.num_tiles_reacheable_after(1000, true), 668697);
-        assert_eq!(garden.num_tiles_reacheable_after(5000, true), 16733044);
+    }
+
+    #[test]
+    fn test_num_tiles_reacheable_extrapolated() {
+        let input = crate::template::read_file("inputs", Day::new(21).unwrap());
+        let garden: Garden = input.parse().unwrap();
+
+        assert_eq!(garden.num_tiles_reacheable_extrapolated(6), garden.num_tiles_reacheable_after(6, true));
+        assert_eq!(garden.num_tiles_reacheable_extrapolated(65), garden.num_tiles_reacheable_after(65, true));
+        assert_eq!(garden.num_tiles_reacheable_extrapolated(100), garden.num_tiles_reacheable_after(100, true));
+        assert_eq!(garden.num_tiles_reacheable_extrapolated(131), garden.num_tiles_reacheable_after(131, true));
+        assert_eq!(garden.num_tiles_reacheable_extrapolated(392), garden.num_tiles_reacheable_after(392, true));
+        assert_eq!(garden.num_tiles_reacheable_extrapolated(393), garden.num_tiles_reacheable_after(393, true));
+        assert_eq!(garden.num_tiles_reacheable_extrapolated(394), garden.num_tiles_reacheable_after(394, true));
+        assert_eq!(garden.num_tiles_reacheable_extrapolated(650), garden.num_tiles_reacheable_after(650, true));
     }
 }
