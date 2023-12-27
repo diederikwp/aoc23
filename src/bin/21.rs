@@ -14,13 +14,5 @@ pub fn part_two(input: &str) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // Testcases can be found in module d21
-
-    #[test]
-    fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
-    }
 }
