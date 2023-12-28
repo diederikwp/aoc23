@@ -108,7 +108,8 @@ impl Garden {
             self.num_tiles_reacheable_after(offset + 131, true),
             self.num_tiles_reacheable_after(offset + 262, true),
         ];
-        let diffdiff = (first_periods[2] - first_periods[1]) - (first_periods[1] - first_periods[0]);
+        let diffdiff =
+            (first_periods[2] - first_periods[1]) - (first_periods[1] - first_periods[0]);
 
         let mut curr = first_periods[2];
         let mut prev = first_periods[1];
@@ -197,13 +198,37 @@ mod tests {
         let input = crate::template::read_file("inputs", Day::new(21).unwrap());
         let garden: Garden = input.parse().unwrap();
 
-        assert_eq!(garden.num_tiles_reacheable_extrapolated(6), garden.num_tiles_reacheable_after(6, true));
-        assert_eq!(garden.num_tiles_reacheable_extrapolated(65), garden.num_tiles_reacheable_after(65, true));
-        assert_eq!(garden.num_tiles_reacheable_extrapolated(100), garden.num_tiles_reacheable_after(100, true));
-        assert_eq!(garden.num_tiles_reacheable_extrapolated(131), garden.num_tiles_reacheable_after(131, true));
-        assert_eq!(garden.num_tiles_reacheable_extrapolated(392), garden.num_tiles_reacheable_after(392, true));
-        assert_eq!(garden.num_tiles_reacheable_extrapolated(393), garden.num_tiles_reacheable_after(393, true));
-        assert_eq!(garden.num_tiles_reacheable_extrapolated(394), garden.num_tiles_reacheable_after(394, true));
-        assert_eq!(garden.num_tiles_reacheable_extrapolated(650), garden.num_tiles_reacheable_after(650, true));
+        assert_eq!(
+            garden.num_tiles_reacheable_extrapolated(6),
+            garden.num_tiles_reacheable_after(6, true)
+        );
+        assert_eq!(
+            garden.num_tiles_reacheable_extrapolated(65),
+            garden.num_tiles_reacheable_after(65, true)
+        );
+        assert_eq!(
+            garden.num_tiles_reacheable_extrapolated(100),
+            garden.num_tiles_reacheable_after(100, true)
+        );
+        assert_eq!(
+            garden.num_tiles_reacheable_extrapolated(131),
+            garden.num_tiles_reacheable_after(131, true)
+        );
+        assert_eq!(
+            garden.num_tiles_reacheable_extrapolated(392),
+            garden.num_tiles_reacheable_after(392, true)
+        );
+        assert_eq!(
+            garden.num_tiles_reacheable_extrapolated(393),
+            garden.num_tiles_reacheable_after(393, true)
+        );
+        assert_eq!(
+            garden.num_tiles_reacheable_extrapolated(394),
+            garden.num_tiles_reacheable_after(394, true)
+        );
+        assert_eq!(
+            garden.num_tiles_reacheable_extrapolated(650),
+            garden.num_tiles_reacheable_after(650, true)
+        );
     }
 }

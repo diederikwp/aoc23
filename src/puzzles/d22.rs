@@ -1,6 +1,6 @@
-use std::{str::FromStr, error::Error, mem};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
+use std::{error::Error, str::FromStr};
 
 pub struct BrickPile(Vec<Brick>); // Vector is sorted by bottom z-coordinate ascending
 
@@ -27,15 +27,18 @@ impl BrickPile {
         for (idx, brick) in self.0.iter().enumerate() {
             for brick_above in &self.0[(idx + 1)..] {
                 if brick_above.lfb.2 > brick.rbt.2 + 1 {
-                    break;  // this brick_above and following cannot be supported by brick
+                    break; // this brick_above and following cannot be supported by brick
                 }
 
                 if brick_above.overlaps_x(brick) && brick_above.overlaps_y(brick) {
-                    supported_by.entry(brick_above).or_insert(Vec::new()).push(brick);
+                    supported_by
+                        .entry(brick_above)
+                        .or_insert(Vec::new())
+                        .push(brick);
                 }
             }
         }
-        
+
         let mut bricks_to_keep = HashSet::default();
         for supporting_bricks in supported_by.values() {
             if supporting_bricks.len() == 1 {
@@ -49,44 +52,34 @@ impl BrickPile {
     /// Let the bricks fall down in z. Assumes `bricks` is sorted by bottom
     /// z-coordinate of the bricks.
     fn drop_bricks(bricks: &mut [Brick]) {
-        let mut bricks_sorted_top = bricks.to_vec();
-        bricks_sorted_top.sort_by_key(|b| b.rbt.2);
+        // `bricks_argsort_top` contain indices into `bricks`, sorted by the top
+        // z-coordinate of the bricks.
+        let mut bricks_argsort_top: Vec<usize> = (0..bricks.len()).collect();
+        bricks_argsort_top.sort_by_key(|&i| bricks[i].rbt.2);
 
         for idx in 0..bricks.len() {
             let brick = &bricks[idx];
             let mut new_z = 1;
-            let mut bricks_skipped = 0;
 
             // Find new z-coordinate by iterating over all bricks whose tops are below this brick's bottom
-            let idx_first_below = match bricks_sorted_top.binary_search_by(|other| other.rbt.2.cmp(&(brick.lfb.2 - 1))) {
-                Ok(idx_found) => idx_found + 1,
-                Err(idx_insert) => idx_insert,
-            };
-            for brick_below in bricks_sorted_top[0..idx_first_below].iter().rev() {
+            let idx_first_not_below =
+                bricks_argsort_top.partition_point(|&i| bricks[i].rbt.2 < brick.lfb.2);
+            for idx_brick_below in bricks_argsort_top[0..idx_first_not_below].iter().rev() {
+                let brick_below = &bricks[*idx_brick_below];
+
                 if brick.overlaps_x(brick_below) && brick.overlaps_y(brick_below) {
                     new_z = brick_below.rbt.2 + 1;
                     break;
-                } else {
-                    bricks_skipped += 1;
                 }
             }
 
             // Set new z-coordinate
-            let idx_top = bricks_sorted_top.binary_search_by(|other| other.rbt.2.cmp(&(brick.rbt.2))).unwrap();
-            let brick_top = &mut bricks_sorted_top[idx_top];
             let brick = &mut bricks[idx];
-
             brick.rbt.2 -= brick.lfb.2 - new_z;
             brick.lfb.2 = new_z;
-            brick_top.rbt = brick.rbt;
-            brick_top.lfb = brick.lfb;
 
-            // Reorder bricks_sorted_top to keep them sorted
-            bricks_sorted_top.sort_by_key(|b| b.rbt.2);
-            // for dest_idx in ((idx_top - bricks_skipped)..idx_top).rev() {
-            //     let (left, right) = bricks_sorted_top.split_at_mut(dest_idx + 1);
-            //     mem::swap(&mut left[left.len() - 1], &mut right[0]);
-            // }
+            // Reorder bricks_argsort_top to keep them sorted
+            bricks_argsort_top.sort_by_key(|&i| bricks[i].rbt.2);
         }
 
         bricks.sort_by_key(|brick| brick.lfb.2);
@@ -108,18 +101,36 @@ impl FromStr for Brick {
         let mut rbt_coords = rbt_str.split(',');
 
         let lfb = (
-            lfb_coords.next().ok_or::<String>("Missing coord".into())?.parse()?,
-            lfb_coords.next().ok_or::<String>("Missing coord".into())?.parse()?,
-            lfb_coords.next().ok_or::<String>("Missing coord".into())?.parse()?,
+            lfb_coords
+                .next()
+                .ok_or::<String>("Missing coord".into())?
+                .parse()?,
+            lfb_coords
+                .next()
+                .ok_or::<String>("Missing coord".into())?
+                .parse()?,
+            lfb_coords
+                .next()
+                .ok_or::<String>("Missing coord".into())?
+                .parse()?,
         );
         if lfb_coords.next().is_some() {
             return Err("Too many coords".into());
         }
 
         let rbt = (
-            rbt_coords.next().ok_or::<String>("Missing coord".into())?.parse()?,
-            rbt_coords.next().ok_or::<String>("Missing coord".into())?.parse()?,
-            rbt_coords.next().ok_or::<String>("Missing coord".into())?.parse()?,
+            rbt_coords
+                .next()
+                .ok_or::<String>("Missing coord".into())?
+                .parse()?,
+            rbt_coords
+                .next()
+                .ok_or::<String>("Missing coord".into())?
+                .parse()?,
+            rbt_coords
+                .next()
+                .ok_or::<String>("Missing coord".into())?
+                .parse()?,
         );
         if rbt_coords.next().is_some() {
             return Err("Too many coords".into());
