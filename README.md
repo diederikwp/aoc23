@@ -10,28 +10,30 @@ Repository structure based on [this template](https://github.com/fspoettel/adven
 
 | Day | Part 1 | Part 2 |
 | :---: | :---: | :---:  |
-| [Day 1](./src/bin/01.rs) | `28.4µs` | `1.1ms` |
-| [Day 2](./src/bin/02.rs) | `35.8µs` | `36.9µs` |
-| [Day 3](./src/bin/03.rs) | `52.2µs` | `86.3µs` |
-| [Day 4](./src/bin/04.rs) | `112.6µs` | `111.7µs` |
-| [Day 5](./src/bin/05.rs) | `23.1µs` | `33.8µs` |
-| [Day 6](./src/bin/06.rs) | `265.0ns` | `247.0ns` |
-| [Day 7](./src/bin/07.rs) | `736.0µs` | `1.3ms` |
-| [Day 8](./src/bin/08.rs) | `226.0µs` | `998.3µs` |
-| [Day 9](./src/bin/09.rs) | `106.5µs` | `106.5µs` |
-| [Day 10](./src/bin/10.rs) | `156.3µs` | `1.1ms` |
-| [Day 11](./src/bin/11.rs) | `23.6µs` | `22.2µs` |
-| [Day 12](./src/bin/12.rs) | `490.4µs` | `4.5ms` |
-| [Day 13](./src/bin/13.rs) | `78.5µs` | `98.5µs` |
-| [Day 14](./src/bin/14.rs) | `37.2µs` | `10.5ms` |
-| [Day 15](./src/bin/15.rs) | `297.2µs` | `355.6µs` |
-| [Day 16](./src/bin/16.rs) | `67.7µs` | `14.7ms` |
-| [Day 17](./src/bin/17.rs) | `35.1ms` | `149.2ms` |
-| [Day 18](./src/bin/18.rs) | `64.0µs` | `62.4µs` |
-| [Day 19](./src/bin/19.rs) | `235.3µs` | `343.3µs` |
-| [Day 20](./src/bin/20.rs) | `431.4µs` | `6.4ms` |
+| [Day 1](./src/bin/01.rs) | `25.1µs` | `1.1ms` |
+| [Day 2](./src/bin/02.rs) | `36.9µs` | `37.3µs` |
+| [Day 3](./src/bin/03.rs) | `50.3µs` | `89.0µs` |
+| [Day 4](./src/bin/04.rs) | `105.9µs` | `105.4µs` |
+| [Day 5](./src/bin/05.rs) | `19.1µs` | `30.5µs` |
+| [Day 6](./src/bin/06.rs) | `186.0ns` | `261.0ns` |
+| [Day 7](./src/bin/07.rs) | `720.6µs` | `1.3ms` |
+| [Day 8](./src/bin/08.rs) | `235.2µs` | `1.1ms` |
+| [Day 9](./src/bin/09.rs) | `120.4µs` | `123.7µs` |
+| [Day 10](./src/bin/10.rs) | `166.4µs` | `1.1ms` |
+| [Day 11](./src/bin/11.rs) | `21.4µs` | `21.2µs` |
+| [Day 12](./src/bin/12.rs) | `477.9µs` | `4.4ms` |
+| [Day 13](./src/bin/13.rs) | `79.5µs` | `90.1µs` |
+| [Day 14](./src/bin/14.rs) | `38.4µs` | `11.4ms` |
+| [Day 15](./src/bin/15.rs) | `294.6µs` | `353.6µs` |
+| [Day 16](./src/bin/16.rs) | `66.2µs` | `14.3ms` |
+| [Day 17](./src/bin/17.rs) | `33.9ms` | `142.7ms` |
+| [Day 18](./src/bin/18.rs) | `62.0µs` | `62.0µs` |
+| [Day 19](./src/bin/19.rs) | `238.4µs` | `345.7µs` |
+| [Day 20](./src/bin/20.rs) | `428.2µs` | `6.2ms` |
+| [Day 21](./src/bin/21.rs) | `668.3µs` | `28.4ms` |
+| [Day 22](./src/bin/22.rs) | `2.9ms` | `301.7ms` |
 
-**Total: 229.36ms**
+**Total: 555.61ms**
 <!--- benchmarking table --->
 
 ---

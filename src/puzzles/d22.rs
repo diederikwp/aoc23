@@ -1,5 +1,6 @@
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
+use std::collections::VecDeque;
 use std::{error::Error, str::FromStr};
 
 pub struct BrickPile(Vec<Brick>); // Vector is sorted by bottom z-coordinate ascending
@@ -22,31 +23,52 @@ impl FromStr for BrickPile {
 
 impl BrickPile {
     pub fn n_bricks_destroyable(&self) -> u32 {
-        let mut supported_by = HashMap::default();
+        let supported_by = self.find_all_supported_by();
+        let load_bearing_bricks = self.find_load_bearing_bricks(&supported_by);
 
-        for (idx, brick) in self.0.iter().enumerate() {
-            for brick_above in &self.0[(idx + 1)..] {
-                if brick_above.lfb.2 > brick.rbt.2 + 1 {
-                    break; // this brick_above and following cannot be supported by brick
+        u32::try_from(self.0.len() - load_bearing_bricks.len()).unwrap()
+    }
+
+    pub fn total_bricks_supported_by_load_bearing(&self) -> u32 {
+        // TODO: Stel D rust niet op C in voorbeeld maar alleen op B. Dan is B
+        // dragend en als je B verpulvert, zakt wel D maar niet ook F. Je moet
+        // bijhouden welke zakken, en een andere node zakt pas als alle nodes
+        // waardoor deze wordt gedragen ook zakken.
+        let supported_by = self.find_all_supported_by();
+        let supporting = self.find_all_supporting(&supported_by);
+        let load_bearing_bricks = self.find_load_bearing_bricks(&supported_by);
+
+        // For each load bearing brick, crawl up the graph and count the
+        // distinct bricks. This involves a lot of re-work so it is not
+        // efficient.
+        let mut total = 0;
+        for bearing_brick in load_bearing_bricks {
+            let mut would_fall = HashSet::default();
+            let mut queue: VecDeque<&Brick> = VecDeque::new();
+            would_fall.insert(bearing_brick);
+            queue.extend(&supporting[bearing_brick]);
+
+            while let Some(brick) = queue.pop_front() {
+                // If this brick has at least one supporting brick that does not
+                // fall; then it will not fall.
+                if supported_by
+                    .get(brick)
+                    .is_some_and(|supporting| !supporting.iter().all(|s| would_fall.contains(s)))
+                {
+                    continue;
                 }
 
-                if brick_above.overlaps_x(brick) && brick_above.overlaps_y(brick) {
-                    supported_by
-                        .entry(brick_above)
-                        .or_insert(Vec::new())
-                        .push(brick);
+                would_fall.insert(brick);
+                if let Some(supported_bricks) = supporting.get(brick) {
+                    queue.extend(supported_bricks);
                 }
             }
+
+            // Don't count the bearing brick itself
+            total += would_fall.len() - 1;
         }
 
-        let mut bricks_to_keep = HashSet::default();
-        for supporting_bricks in supported_by.values() {
-            if supporting_bricks.len() == 1 {
-                bricks_to_keep.insert(supporting_bricks[0]);
-            }
-        }
-
-        u32::try_from(self.0.len() - bricks_to_keep.len()).unwrap()
+        u32::try_from(total).unwrap()
     }
 
     /// Let the bricks fall down in z. Assumes `bricks` is sorted by bottom
@@ -83,6 +105,56 @@ impl BrickPile {
         }
 
         bricks.sort_by_key(|brick| brick.lfb.2);
+    }
+
+    fn find_all_supported_by(&self) -> HashMap<&Brick, Vec<&Brick>> {
+        let mut supported_by = HashMap::default();
+
+        for (idx, brick) in self.0.iter().enumerate() {
+            for brick_above in &self.0[(idx + 1)..] {
+                if brick_above.lfb.2 > brick.rbt.2 + 1 {
+                    break; // this brick_above and following cannot be supported by brick
+                }
+
+                if brick_above.overlaps_x(brick) && brick_above.overlaps_y(brick) {
+                    supported_by
+                        .entry(brick_above)
+                        .or_insert(Vec::new())
+                        .push(brick);
+                }
+            }
+        }
+        supported_by
+    }
+
+    fn find_all_supporting<'a>(
+        &'a self,
+        supported_by: &HashMap<&'a Brick, Vec<&'a Brick>>,
+    ) -> HashMap<&'a Brick, HashSet<&'a Brick>> {
+        let mut supporting = HashMap::default();
+        for (&brick, supporting_bricks) in supported_by {
+            for &supporting_brick in supporting_bricks {
+                supporting
+                    .entry(supporting_brick)
+                    .or_insert(HashSet::default())
+                    .insert(brick);
+            }
+        }
+
+        supporting
+    }
+
+    fn find_load_bearing_bricks<'a>(
+        &'a self,
+        supported_by: &HashMap<&'a Brick, Vec<&'a Brick>>,
+    ) -> HashSet<&'a Brick> {
+        let mut load_bearing_bricks = HashSet::default();
+        for supporting_bricks in supported_by.values() {
+            if supporting_bricks.len() == 1 {
+                load_bearing_bricks.insert(supporting_bricks[0]);
+            }
+        }
+        load_bearing_bricks
     }
 }
 
