@@ -30,10 +30,6 @@ impl BrickPile {
     }
 
     pub fn total_bricks_supported_by_load_bearing(&self) -> u32 {
-        // TODO: Stel D rust niet op C in voorbeeld maar alleen op B. Dan is B
-        // dragend en als je B verpulvert, zakt wel D maar niet ook F. Je moet
-        // bijhouden welke zakken, en een andere node zakt pas als alle nodes
-        // waardoor deze wordt gedragen ook zakken.
         let supported_by = self.find_all_supported_by();
         let supporting = self.find_all_supporting(&supported_by);
         let load_bearing_bricks = self.find_load_bearing_bricks(&supported_by);
