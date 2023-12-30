@@ -11,6 +11,7 @@ pub struct Map {
     grid: Grid,
     edges_out: HashMap<Pos, Vec<(Pos, u32)>>, // key: from_position, value: pairs of (to_position, distance)
     edges_in: HashMap<Pos, Vec<(Pos, u32)>>,
+    edges_undirected: HashMap<Pos, Vec<(Pos, u32)>>,
 }
 
 impl FromStr for Map {
@@ -23,7 +24,19 @@ impl FromStr for Map {
 }
 
 impl Map {
-    pub fn longest_path_len(&self) -> u32 {
+    pub fn print_graphviz(&self) {
+        println!("digraph G {{");
+
+        for (vx_from, outgoing_edges) in &self.edges_out {
+            for (vx_to, dist) in outgoing_edges {
+                println!("\"{vx_from:?}\" -> \"{vx_to:?}\" [ label=\"{dist}\" ];")
+            }
+        }
+
+        println!("}}");
+    }
+
+    pub fn longest_path_len_directed(&self) -> u32 {
         // Assumption: graph is acyclic (a DAG)
         let topsort = self.topological_sort();
         let mut max_total_dist: HashMap<Pos, u32> = HashMap::default();
@@ -46,15 +59,80 @@ impl Map {
         max_total_dist[&self.grid.exit()]
     }
 
+    pub fn longest_path_len_undirected(&self) -> u32 {
+        // Just brute-force search all paths using DFS. I couldn't think of or
+        // find a better algorithm. Stack frames contain (vertex, distance from
+        // entrance, visited_vertices).
+
+        let exit = self.grid.exit();
+        let mut longest_dist = 0;
+        let mut stack = vec![(self.grid.entrance(), 0, HashSet::default())];
+
+        while let Some((vx, total_dist, visited)) = stack.pop() {
+            if vx == exit {
+                longest_dist = u32::max(longest_dist, total_dist);
+                continue;
+            }
+
+            let Some(edges) = self.edges_undirected.get(&vx) else {
+                continue;
+            };
+            for (neighbour, dist) in edges {
+                if visited.contains(neighbour) {
+                    continue;
+                }
+
+                let mut new_visited = visited.clone();
+                new_visited.insert(vx);
+                stack.push((*neighbour, total_dist + dist, new_visited));
+            }
+        }
+
+        longest_dist
+    }
+
     fn from_grid(grid: Grid) -> Self {
         let vertices = grid.find_vertices();
         let edges_out = grid.find_edges_out(&vertices);
-        let edges_in = Grid::find_edges_in_from_edges_out(&edges_out);
+        let edges_in = Self::make_edges_in_from_edges_out(&edges_out);
+        let edges_undirected = Self::make_undirected_edges_from_edges_out(&edges_out);
         Map {
             grid,
             edges_out,
             edges_in,
+            edges_undirected,
         }
+    }
+
+    fn make_edges_in_from_edges_out(
+        edges_out: &HashMap<Pos, Vec<(Pos, u32)>>,
+    ) -> HashMap<Pos, Vec<(Pos, u32)>> {
+        let mut edges_in: HashMap<Pos, Vec<(Pos, u32)>> = HashMap::default();
+        for (&node_from, outgoing_edges) in edges_out {
+            for &(node_to, distance) in outgoing_edges {
+                edges_in
+                    .entry(node_to)
+                    .or_default()
+                    .push((node_from, distance));
+            }
+        }
+
+        edges_in
+    }
+
+    fn make_undirected_edges_from_edges_out(
+        edges_out: &HashMap<Pos, Vec<(Pos, u32)>>,
+    ) -> HashMap<Pos, Vec<(Pos, u32)>> {
+        let mut edges: HashMap<Pos, Vec<(Pos, u32)>> = HashMap::default();
+
+        for (&vx, outgoing_edges) in edges_out {
+            for &(neighbour, distance) in outgoing_edges {
+                edges.entry(vx).or_default().push((neighbour, distance));
+                edges.entry(neighbour).or_default().push((vx, distance));
+            }
+        }
+
+        edges
     }
 
     fn topological_sort(&self) -> Vec<Pos> {
@@ -189,22 +267,6 @@ impl Grid {
         }
 
         edges
-    }
-
-    fn find_edges_in_from_edges_out(
-        edges_out: &HashMap<Pos, Vec<(Pos, u32)>>,
-    ) -> HashMap<Pos, Vec<(Pos, u32)>> {
-        let mut edges_in: HashMap<Pos, Vec<(Pos, u32)>> = HashMap::default();
-        for (&node_from, outgoing_edges) in edges_out {
-            for &(node_to, distance) in outgoing_edges {
-                edges_in
-                    .entry(node_to)
-                    .or_default()
-                    .push((node_from, distance));
-            }
-        }
-
-        edges_in
     }
 
     fn walk_to_next_vertex(
