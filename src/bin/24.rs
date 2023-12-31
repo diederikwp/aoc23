@@ -8,8 +8,10 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(hail.count_intersections_within_xy(&range, &range))
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<i64> {
+    let hail: Hail = input.parse().unwrap();
+    let pos = hail.find_perfect_throw_velocity_and_position();
+    Some(pos.0 + pos.1 + pos.2)
 }
 
 #[cfg(test)]
@@ -19,6 +21,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(47));
     }
 }

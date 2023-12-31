@@ -16,6 +16,7 @@ test_lib = []
 [dependencies]
 lazy_static = "1.4.0"
 ndarray = "0.15.6"
+ndarray-linalg = { version = "0.16.0", features = ["openblas-system"] }
 num-integer = "0.1.45"
 pico-args = "0.5.0"
 regex = "1.10.2"
