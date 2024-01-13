@@ -1,6 +1,7 @@
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::VecDeque;
+use std::hash::Hash;
 use std::{error::Error, str::FromStr};
 
 pub struct BrickPile(Vec<Brick>); // Vector is sorted by bottom z-coordinate ascending
@@ -29,42 +30,37 @@ impl BrickPile {
         u32::try_from(self.0.len() - load_bearing_bricks.len()).unwrap()
     }
 
-    pub fn total_bricks_supported_by_load_bearing(&self) -> u32 {
-        let supported_by = self.find_all_supported_by();
-        let supporting = self.find_all_supporting(&supported_by);
-        let load_bearing_bricks = self.find_load_bearing_bricks(&supported_by);
+    /// Sum over all bricks of how many bricks would fall if that brick were destroyed.
+    pub fn sum_falling_count(&self) -> u32 {
+        // Go over the graph in topologically sorted order, starting from the
+        // bottom. For each brick, determine which other bricks would make it
+        // fall (`tot_supported_by`). Also keep a running count of such bricks
+        // in sum_falling.
+        let supported_by = self.find_all_supported_by(); // immediate support, 1 step down
+        let topsort = self.topological_sort(&supported_by);
+        let mut tot_supported_by = HashMap::default(); // total support, all the way down
+        let mut sum_falling = 0;
 
-        // For each load bearing brick, crawl up the graph and count the
-        // distinct bricks. This involves a lot of re-work so it is not
-        // efficient.
-        let mut total = 0;
-        for bearing_brick in load_bearing_bricks {
-            let mut would_fall = HashSet::default();
-            let mut queue: VecDeque<&Brick> = VecDeque::new();
-            would_fall.insert(bearing_brick);
-            queue.extend(&supporting[bearing_brick]);
+        for brick in topsort {
+            let Some(below) = supported_by.get(brick) else {
+                continue;
+            };
 
-            while let Some(brick) = queue.pop_front() {
-                // If this brick has at least one supporting brick that does not
-                // fall; then it will not fall.
-                if supported_by
-                    .get(brick)
-                    .is_some_and(|supporting| !supporting.iter().all(|s| would_fall.contains(s)))
-                {
-                    continue;
-                }
-
-                would_fall.insert(brick);
-                if let Some(supported_bricks) = supporting.get(brick) {
-                    queue.extend(supported_bricks);
-                }
+            // Brick B supports brick A iff all supporting bricks of A are
+            // themselves supported by B, so we need to find the intersection of
+            // tot_supported_by among all supporting bricks of this brick.
+            let mut intersection =
+                set_intersection(below.iter().filter_map(|b| tot_supported_by.get(b)));
+            if supported_by.get(brick).is_some_and(|sb| sb.len() == 1) {
+                // If brick is immediately supported by just 1 brick, then that
+                // brick should also be added.
+                intersection.insert(supported_by[brick][0]);
             }
-
-            // Don't count the bearing brick itself
-            total += would_fall.len() - 1;
+            sum_falling += intersection.len();
+            tot_supported_by.insert(brick, intersection);
         }
 
-        u32::try_from(total).unwrap()
+        u32::try_from(sum_falling).unwrap()
     }
 
     /// Let the bricks fall down in z. Assumes `bricks` is sorted by bottom
@@ -152,6 +148,45 @@ impl BrickPile {
         }
         load_bearing_bricks
     }
+
+    /// Find any topological ordering, starting from the bottom bricks
+    fn topological_sort<'a>(
+        &'a self,
+        supported_by: &HashMap<&'a Brick, Vec<&'a Brick>>,
+    ) -> Vec<&'a Brick> {
+        // using Kahn's algorithm. Assuming acyclic graph.
+        let mut n_unvisited_below: HashMap<&Brick, usize> = self
+            .0
+            .iter()
+            .map(|b| (b, supported_by.get(b).map(|sb| sb.len()).unwrap_or(0)))
+            .collect();
+        let bottom_bricks: Vec<_> = self
+            .0
+            .iter()
+            .filter(|&b| supported_by.get(b).is_none())
+            .collect();
+        let mut queue = VecDeque::from(bottom_bricks);
+        let mut topsort = Vec::with_capacity(self.0.len());
+        let supporting = self.find_all_supporting(supported_by);
+
+        while let Some(brick) = queue.pop_front() {
+            topsort.push(brick);
+
+            let Some(above) = supporting.get(brick) else {
+                continue;
+            };
+
+            for brick_above in above {
+                let n = n_unvisited_below.get_mut(brick_above).unwrap();
+                *n -= 1;
+                if *n == 0 {
+                    queue.push_back(brick_above);
+                }
+            }
+        }
+
+        topsort
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -223,4 +258,29 @@ impl Brick {
     fn overlaps_y(&self, other: &Brick) -> bool {
         self.lfb.1 <= other.rbt.1 && other.lfb.1 <= self.rbt.1
     }
+}
+
+fn set_intersection<'a, I, T>(sets: I) -> HashSet<T>
+where
+    I: IntoIterator<Item = &'a HashSet<T>>,
+    I::IntoIter: Clone,
+    T: 'a + Eq + PartialEq + Hash + Clone,
+{
+    let iter = sets.into_iter();
+
+    // First find the smallest set, because it is most efficient to iterate over
+    // that.
+    let smallest = iter.clone().min_by_key(|s| s.len());
+    let Some(smallest) = smallest else {
+        return HashSet::default();
+    };
+
+    let mut intersection = HashSet::default();
+    for item in smallest {
+        if iter.clone().all(|s| s.contains(item)) {
+            intersection.insert(item.clone());
+        }
+    }
+
+    intersection
 }

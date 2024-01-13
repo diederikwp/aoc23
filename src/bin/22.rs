@@ -9,7 +9,7 @@ pub fn part_one(input: &str) -> Option<u32> {
 
 pub fn part_two(input: &str) -> Option<u32> {
     let brick_pile: BrickPile = input.parse().unwrap();
-    Some(brick_pile.total_bricks_supported_by_load_bearing())
+    Some(brick_pile.sum_falling_count())
 }
 
 #[cfg(test)]
