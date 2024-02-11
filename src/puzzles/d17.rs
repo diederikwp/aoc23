@@ -41,7 +41,7 @@ impl Map {
         let mut best_cost = FxHashMap::default();
 
         // start direction South disallows turning back North, but that is
-        // ok because that would take us of the map.
+        // ok because that would take us off the map.
         let start_node = T::new((0, 0), Direction::South);
         let start_heuristic = Self::manhattan_dist((0, 0), self.target());
 
@@ -53,11 +53,7 @@ impl Map {
                 return Some(cost);
             }
 
-            for maybe_neighbour in node.get_all_neighbours(self) {
-                let Some(neighbour) = maybe_neighbour else {
-                    continue;
-                };
-
+            for neighbour in node.get_all_neighbours(self).into_iter().flatten() {
                 if visited.contains(&neighbour) {
                     continue; // We already visited this node
                 }
@@ -92,14 +88,51 @@ impl Map {
     fn manhattan_dist(from: (usize, usize), to: (usize, usize)) -> u32 {
         u32::try_from(from.0.abs_diff(to.0) + from.1.abs_diff(to.1)).unwrap()
     }
+
+    fn get_neighbour_pos(
+        &self,
+        pos: (usize, usize),
+        direction: Direction,
+    ) -> Option<(usize, usize)> {
+        let ipos = (
+            isize::try_from(pos.0).unwrap(),
+            isize::try_from(pos.1).unwrap(),
+        );
+        let iheight = isize::try_from(self.0.shape()[0]).unwrap();
+        let iwidth = isize::try_from(self.0.shape()[1]).unwrap();
+
+        let neighbour_pos = (ipos.0 + direction.dy(), ipos.1 + direction.dx());
+        if neighbour_pos.0 < 0
+            || neighbour_pos.1 < 0
+            || neighbour_pos.0 >= iheight
+            || neighbour_pos.1 >= iwidth
+        {
+            return None;
+        }
+
+        Some((
+            usize::try_from(neighbour_pos.0).unwrap(),
+            usize::try_from(neighbour_pos.1).unwrap(),
+        ))
+    }
 }
 
 trait Node: Clone + std::hash::Hash + Ord + Sized {
     fn new(start_pos: (usize, usize), start_direction: Direction) -> Self;
     fn pos(&self) -> (usize, usize);
-    fn get_all_neighbours(&self, map: &Map) -> [Option<Self>; 4];
+    fn direction(&self) -> Direction;
     fn can_stop(&self) -> bool;
+    fn make_step(&self, map: &Map, direction: Direction) -> Option<Self>;
     fn heuristic(&self, map: &Map) -> u32;
+
+    fn get_all_neighbours(&self, map: &Map) -> [Option<Self>; 4] {
+        [
+            self.make_step(map, Direction::North),
+            self.make_step(map, Direction::East),
+            self.make_step(map, Direction::South),
+            self.make_step(map, Direction::West),
+        ]
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -122,71 +155,29 @@ impl Node for Crucible {
         self.pos
     }
 
-    fn get_all_neighbours(&self, map: &Map) -> [Option<Crucible>; 4] {
-        [
-            self.get_neighbour(Direction::North, map),
-            self.get_neighbour(Direction::East, map),
-            self.get_neighbour(Direction::South, map),
-            self.get_neighbour(Direction::West, map),
-        ]
+    fn direction(&self) -> Direction {
+        self.direction
     }
 
     fn can_stop(&self) -> bool {
         true
     }
 
-    fn heuristic(&self, map: &Map) -> u32 {
-        Map::manhattan_dist(self.pos, map.target())
-    }
-}
+    fn make_step(&self, map: &Map, direction: Direction) -> Option<Self> {
+        // neighbour is on map
+        let neighbour_pos = map.get_neighbour_pos(self.pos(), direction)?;
 
-impl Crucible {
-    fn get_neighbour(&self, direction: Direction, map: &Map) -> Option<Crucible> {
-        let (height, width) = (map.0.shape()[0], map.0.shape()[1]);
+        // turn is allowed (not 180)
+        if self.direction == direction.opposite() {
+            return None;
+        }
 
-        let pos = match direction {
-            Direction::North => {
-                if self.pos.0 > 0
-                    && self.direction != Direction::South
-                    && (self.direction != Direction::North || self.remaining_steps > 0)
-                {
-                    Some((self.pos.0 - 1, self.pos.1))
-                } else {
-                    None
-                }
-            }
-            Direction::East => {
-                if self.pos.1 < width - 1
-                    && self.direction != Direction::West
-                    && (self.direction != Direction::East || self.remaining_steps > 0)
-                {
-                    Some((self.pos.0, self.pos.1 + 1))
-                } else {
-                    None
-                }
-            }
-            Direction::South => {
-                if self.pos.0 < height - 1
-                    && self.direction != Direction::North
-                    && (self.direction != Direction::South || self.remaining_steps > 0)
-                {
-                    Some((self.pos.0 + 1, self.pos.1))
-                } else {
-                    None
-                }
-            }
-            Direction::West => {
-                if self.pos.1 > 0
-                    && self.direction != Direction::East
-                    && (self.direction != Direction::West || self.remaining_steps > 0)
-                {
-                    Some((self.pos.0, self.pos.1 - 1))
-                } else {
-                    None
-                }
-            }
-        }?;
+        // don't exceed remaining steps
+        if self.direction == direction && self.remaining_steps == 0 {
+            return None;
+        }
 
+        // update remaining steps
         let remaining_steps = if self.direction == direction {
             self.remaining_steps - 1
         } else {
@@ -194,10 +185,14 @@ impl Crucible {
         };
 
         Some(Crucible {
-            pos,
+            pos: neighbour_pos,
             direction,
             remaining_steps,
         })
+    }
+
+    fn heuristic(&self, map: &Map) -> u32 {
+        Map::manhattan_dist(self.pos, map.target())
     }
 }
 
@@ -221,81 +216,37 @@ impl Node for UltraCrucible {
         self.pos
     }
 
-    fn get_all_neighbours(&self, map: &Map) -> [Option<Self>; 4] {
-        [
-            self.get_neighbour(Direction::North, map),
-            self.get_neighbour(Direction::East, map),
-            self.get_neighbour(Direction::South, map),
-            self.get_neighbour(Direction::West, map),
-        ]
+    fn direction(&self) -> Direction {
+        self.direction
     }
 
     fn can_stop(&self) -> bool {
         self.consecutive_steps >= 4
     }
 
-    fn heuristic(&self, map: &Map) -> u32 {
-        Map::manhattan_dist(self.pos, map.target())
-    }
-}
+    fn make_step(&self, map: &Map, direction: Direction) -> Option<Self> {
+        // neighbour is on map
+        let neighbour_pos = map.get_neighbour_pos(self.pos(), direction)?;
 
-impl UltraCrucible {
-    fn get_neighbour(&self, direction: Direction, map: &Map) -> Option<UltraCrucible> {
-        let (height, width) = (map.0.shape()[0], map.0.shape()[1]);
+        // turn is allowed (not 180)
+        if self.direction == direction.opposite() {
+            return None;
+        }
 
-        let pos = match direction {
-            Direction::North => {
-                if self.pos.0 > 0
-                    && self.direction != Direction::South
-                    // Starting node is a special case; it can turn even though
-                    // it has not made 4 consecutive steps yet.
-                    && (self.consecutive_steps == 0
-                        || (self.direction != Direction::North && self.consecutive_steps >= 4)
-                        || (self.direction == Direction::North && self.consecutive_steps < 10))
-                {
-                    Some((self.pos.0 - 1, self.pos.1))
-                } else {
-                    None
-                }
-            }
-            Direction::East => {
-                if self.pos.1 < width - 1
-                    && self.direction != Direction::West
-                    && (self.consecutive_steps == 0
-                        || (self.direction != Direction::East && self.consecutive_steps >= 4)
-                        || (self.direction == Direction::East && self.consecutive_steps < 10))
-                {
-                    Some((self.pos.0, self.pos.1 + 1))
-                } else {
-                    None
-                }
-            }
-            Direction::South => {
-                if self.pos.0 < height - 1
-                    && self.direction != Direction::North
-                    && (self.consecutive_steps == 0
-                        || (self.direction != Direction::South && self.consecutive_steps >= 4)
-                        || (self.direction == Direction::South && self.consecutive_steps < 10))
-                {
-                    Some((self.pos.0 + 1, self.pos.1))
-                } else {
-                    None
-                }
-            }
-            Direction::West => {
-                if self.pos.1 > 0
-                    && self.direction != Direction::East
-                    && (self.consecutive_steps == 0
-                        || (self.direction != Direction::West && self.consecutive_steps >= 4)
-                        || (self.direction == Direction::West && self.consecutive_steps < 10))
-                {
-                    Some((self.pos.0, self.pos.1 - 1))
-                } else {
-                    None
-                }
-            }
-        }?;
+        // satisfy consecutive steps constraint. Special case: starting node can
+        // always turn even if it has not made 4 steps yet.
+        if self.direction == direction
+            && self.consecutive_steps >= 10
+            && self.consecutive_steps != 0
+        {
+            return None;
+        }
+        if self.direction != direction && self.consecutive_steps < 4 && self.consecutive_steps != 0
+        {
+            return None;
+        }
 
+        // update consecutive steps
         let consecutive_steps = if self.direction == direction {
             self.consecutive_steps + 1
         } else {
@@ -303,17 +254,48 @@ impl UltraCrucible {
         };
 
         Some(UltraCrucible {
-            pos,
+            pos: neighbour_pos,
             direction,
             consecutive_steps,
         })
     }
+
+    fn heuristic(&self, map: &Map) -> u32 {
+        Map::manhattan_dist(self.pos, map.target())
+    }
 }
 
-#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq, PartialOrd, Ord)]
 enum Direction {
     North,
     East,
     South,
     West,
+}
+
+impl Direction {
+    fn dx(&self) -> isize {
+        match self {
+            Direction::North | Direction::South => 0,
+            Direction::East => 1,
+            Direction::West => -1,
+        }
+    }
+
+    fn dy(&self) -> isize {
+        match self {
+            Direction::East | Direction::West => 0,
+            Direction::North => -1,
+            Direction::South => 1,
+        }
+    }
+
+    fn opposite(&self) -> Self {
+        match self {
+            Direction::North => Direction::South,
+            Direction::East => Direction::West,
+            Direction::South => Direction::North,
+            Direction::West => Direction::East,
+        }
+    }
 }
