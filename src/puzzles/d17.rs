@@ -1,10 +1,16 @@
 use std::{cmp::Reverse, collections::BinaryHeap, error::Error, str::FromStr};
 
 use ndarray::{Array, Array2};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 #[derive(Eq, PartialEq)]
-pub struct Map(Array2<u8>);
+pub struct Map {
+    grid: Array2<u8>,
+
+    /// Shortest path from position to exit, taking into account heat loss but
+    /// no "consecutive steps" constraints.
+    heur_cost_to_target: Array2<u32>,
+}
 
 impl FromStr for Map {
     type Err = Box<dyn Error>;
@@ -13,8 +19,13 @@ impl FromStr for Map {
         let width = s.find('\n').unwrap_or(s.len());
         let linear_grid = Array::from_iter(s.bytes().filter(|&b| b != b'\n').map(|b| b - b'0'));
         let height = linear_grid.len() / width;
+        let grid = linear_grid.into_shape((height, width))?;
+        let heur_cost_to_target = Self::find_lowest_cost_to_target(&grid);
 
-        Ok(Map(linear_grid.into_shape((height, width))?))
+        Ok(Map {
+            grid,
+            heur_cost_to_target,
+        })
     }
 }
 
@@ -30,7 +41,7 @@ impl Map {
     /// Find the cost of the shortest path using the A* algorithm
     fn cheapest_path_cost<T: Node>(&self) -> Option<u32> {
         // visited contains nodes fully expanded
-        let mut visited = FxHashSet::default();
+        let mut visited = HashSet::default();
         // The frontier contains nodes discovered but not fully expanded yet, as
         // tuples of (heuristic_cost_start_to_target_through_node, cost_node,
         // node). The first element of the tuple is used for ordering in the
@@ -38,12 +49,12 @@ impl Map {
         let mut frontier = BinaryHeap::new();
         // best_cost contains the lowest cost from start to node, for every
         // discovered node.
-        let mut best_cost = FxHashMap::default();
+        let mut best_cost = HashMap::default();
 
         // start direction South disallows turning back North, but that is
         // ok because that would take us off the map.
         let start_node = T::new((0, 0), Direction::South);
-        let start_heuristic = Self::manhattan_dist((0, 0), self.target());
+        let start_heuristic = self.heur_cost_to_target[(0, 0)];
 
         frontier.push(Reverse((start_heuristic, 0, start_node.clone())));
         best_cost.insert(start_node, 0);
@@ -58,7 +69,7 @@ impl Map {
                     continue; // We already visited this node
                 }
 
-                let neighbour_cost = cost + u32::from(self.0[neighbour.pos()]);
+                let neighbour_cost = cost + u32::from(self.grid[neighbour.pos()]);
                 if best_cost
                     .get(&neighbour)
                     .is_some_and(|&c| c <= neighbour_cost)
@@ -82,11 +93,7 @@ impl Map {
     }
 
     fn target(&self) -> (usize, usize) {
-        (self.0.shape()[0] - 1, self.0.shape()[1] - 1)
-    }
-
-    fn manhattan_dist(from: (usize, usize), to: (usize, usize)) -> u32 {
-        u32::try_from(from.0.abs_diff(to.0) + from.1.abs_diff(to.1)).unwrap()
+        (self.grid.shape()[0] - 1, self.grid.shape()[1] - 1)
     }
 
     fn get_neighbour_pos(
@@ -98,8 +105,8 @@ impl Map {
             isize::try_from(pos.0).unwrap(),
             isize::try_from(pos.1).unwrap(),
         );
-        let iheight = isize::try_from(self.0.shape()[0]).unwrap();
-        let iwidth = isize::try_from(self.0.shape()[1]).unwrap();
+        let iheight = isize::try_from(self.grid.shape()[0]).unwrap();
+        let iwidth = isize::try_from(self.grid.shape()[1]).unwrap();
 
         let neighbour_pos = (ipos.0 + direction.dy(), ipos.1 + direction.dx());
         if neighbour_pos.0 < 0
@@ -114,6 +121,48 @@ impl Map {
             usize::try_from(neighbour_pos.0).unwrap(),
             usize::try_from(neighbour_pos.1).unwrap(),
         ))
+    }
+
+    /// Find the shortest path from any position to the target position using
+    /// Dijkstra's algorithm. This takes into account heat loss but no
+    /// "consecutive steps" constraints.
+    fn find_lowest_cost_to_target(grid: &Array2<u8>) -> Array2<u32> {
+        let shape = [grid.shape()[0], grid.shape()[1]];
+        let target = (shape[0] - 1, shape[1] - 1);
+
+        let mut lowest_cost = Array2::from_elem(shape, u32::MAX);
+        let mut visited = Array2::from_elem(shape, false);
+        let mut frontier = BinaryHeap::new(); // contains (pos, cost) tuples
+        lowest_cost[target] = 0;
+        frontier.push(Reverse((0, target)));
+
+        while let Some(Reverse((cost, pos))) = frontier.pop() {
+            if visited[pos] {
+                continue;
+            }
+
+            for (dy, dx) in [(1, 0), (0, -1), (-1, 0), (0, 1)] {
+                let ineighbour = (pos.0 as isize + dy, pos.1 as isize + dx);
+                if ineighbour.0 < 0 || ineighbour.1 < 0 {
+                    continue;
+                }
+                let neighbour = (ineighbour.0 as usize, ineighbour.1 as usize);
+                if neighbour.0 >= shape[0] || neighbour.1 >= shape[1] {
+                    continue;
+                }
+
+                let neighbour_cost = cost + u32::from(grid[pos]);
+                if neighbour_cost < lowest_cost[neighbour] {
+                    lowest_cost[neighbour] = neighbour_cost;
+                }
+
+                frontier.push(Reverse((lowest_cost[neighbour], neighbour)));
+            }
+
+            visited[pos] = true;
+        }
+
+        lowest_cost
     }
 }
 
@@ -192,7 +241,7 @@ impl Node for Crucible {
     }
 
     fn heuristic(&self, map: &Map) -> u32 {
-        Map::manhattan_dist(self.pos, map.target())
+        map.heur_cost_to_target[self.pos]
     }
 }
 
@@ -261,7 +310,7 @@ impl Node for UltraCrucible {
     }
 
     fn heuristic(&self, map: &Map) -> u32 {
-        Map::manhattan_dist(self.pos, map.target())
+        map.heur_cost_to_target[self.pos]
     }
 }
 
